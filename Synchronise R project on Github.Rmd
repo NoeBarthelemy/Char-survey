@@ -1,0 +1,53 @@
+---
+title: "Synchronise R project on Github"
+author: 'Noé Barthelemy'
+
+date: "28/07/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{bash}
+*** Veuillez me dire qui vous êtes.
+
+# Lancez
+
+  git config --global user.email "Vous@exemple.com"
+  git config --global user.name "Votre Nom"
+
+# pour régler l'identité par défaut de votre compte.
+# Éliminez --global pour ne faire les réglages que dans ce dépôt.
+```
+
+That link is cool too: https://rtask.thinkr.fr/fr/transformer-un-dossier-en-projet-git-synchronise-sur-github-ou-gitlab/ 
+```{r}
+library(usethis)
+usethis::use_git()
+use_git_config(user.name = "NoeBarthelemy", user.email = "noe.barthelemy@hotmail.fr")
+```
+
+
+Use that link and follow instructions https://hansenjohnson.org/post/sync-github-repository-with-existing-r-project/ 
+
+
+```{bash}
+# move to the project directory
+cd /home/nonopov/Bureau/PHD/Ongoing_Projects/Economics/Survey_analysis
+
+# initiate the upstream tracking of the project on the GitHub repo
+git remote add origin https://github.com/NoeBarthelemy/Char-survey.git
+git remote set-url origin https://github.com/NoeBarthelemy/Char-survey.git
+
+# pull all files from the GitHub repo (typically just readme, license, gitignore)
+git pull origin master https://github.com/NoeBarthelemy/Char-survey/
+
+# set up GitHub repo to track changes on local machine
+git push -u origin master https://github.com/NoeBarthelemy/Char-survey
+```
+```{bash}
+git push --set-upstream origin master https://github.com/NoeBarthelemy/Char-survey.git
+```
+
