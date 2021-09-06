@@ -9,9 +9,303 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+```{r}
+library(tidyverse)
+library(readxl)
+library(esquisse)
+```
 
 This is empty but I needed a script to try the sharing process with Rowan.
 
+```{r}
+Survey_Dummy_Variables_Rowan_V1_NB_edits <- read_excel("~/Bureau/PHD/Ongoing_Projects/Economics/DATA_SURVEY/Survey Dummy Variables_Rowan_V1_SEP2021.xlsx")
+View(Survey_Dummy_Variables_Rowan_V1_NB_edits)
 
+# Keep that one stored as backup object 
+# Original_from_Rowan_BACKUP <- Survey_Dummy_Variables_Rowan_V1_NB_edits
+```
+Create some dummy variables to re-create what Rowan did originally by hand on excel: 
+--> The current position is sorted.
+
+```{r}
+Survey_Dummy_Variables_Rowan_V1_September2021 <- Survey_Dummy_Variables_Rowan_V1_NB_edits %>% 
+  mutate(., Male = ifelse(Gender == "Male", 1, 0)) %>%
+  mutate(., Female = ifelse(Gender == "Female", 1, 0)) %>% 
+  mutate(., Employed_Dummy = ifelse(Employment_status == "Employed", 1, 0)) %>% 
+  mutate(., Retired_Dummy = ifelse(Employment_status == "Retired", 1, 0)) %>% 
+  mutate(., Student_Dummy = ifelse(Employment_status == "Full time student / apprenticeship", 1, 0)) %>% 
+  mutate(., Undergrad_Dummy = ifelse(Highest_education_level == "University - undergraduate degree", 1, 0)) %>% 
+  mutate(., Postgrad_Dummy = ifelse(Highest_education_level == "University - postgraduate degree", 1, 0)) %>% 
+  mutate(., No_Papers_Dummy = ifelse(Publications_read == "0", 1, 0)) %>% 
+  mutate(., Some_Papers_Dummy = ifelse(Publications_read %in% c("1-5", "6-10", "11-20"), 1, 0)) %>% 
+  mutate(., Many_Papers_Dummy = ifelse(Publications_read == "21+", 1, 0)) %>% 
+  # Now sort the lottery thing: 
+  mutate(., Q1_Risk_Rating = ifelse(Risk_lottery_money_99 == "Option A", 0, 1)) %>% 
+  mutate(., Q2_Risk_Rating = ifelse(Risk_lottery_money_90 == "Option A", 0, 2)) %>% 
+  mutate(., Q3_Risk_Rating = ifelse(Risk_lottery_money_80 == "Option A", 0, 3)) %>% 
+  mutate(., Q4_Risk_Rating = ifelse(Risk_lottery_money_70 == "Option A", 0, 4)) %>% 
+  mutate(., Q5_Risk_Rating = ifelse(Risk_lottery_money_60 == "Option A", 0, 5)) %>% 
+  mutate(., Q6_Risk_Rating = ifelse(Risk_lottery_money_50 == "Option A", 0, 6)) %>% 
+  mutate(., Q7_Risk_Rating = ifelse(Risk_lottery_money_40 == "Option A", 0, 7)) %>% 
+  mutate(., Q8_Risk_Rating = ifelse(Risk_lottery_money_30 == "Option A", 0, 8)) %>% 
+  mutate(., Q9_Risk_Rating = ifelse(Risk_lottery_money_20 == "Option A", 0, 9)) %>% 
+  mutate(., Q10_Risk_Rating = ifelse(Risk_lottery_money_10 == "Option A", 0, 10)) %>% 
+  rowwise(.) %>% 
+  mutate(., Average_Lotto_Risk_Rating = mean(c(Q1_Risk_Rating, Q2_Risk_Rating, Q3_Risk_Rating, Q4_Risk_Rating, Q5_Risk_Rating, Q6_Risk_Rating, Q7_Risk_Rating, Q8_Risk_Rating, Q9_Risk_Rating, Q10_Risk_Rating))) %>% 
+  # Now sort the population lottery thing: 
+  mutate(., Q1_Conservation_Risk_Rating_ = ifelse(Risk_lottery_populations_99 == "Option A", 0, 1)) %>% 
+  mutate(., Q2_Conservation_Risk_Rating_ = ifelse(Risk_lottery_populations_90 == "Option A", 0, 2)) %>% 
+  mutate(., Q3_Conservation_Risk_Rating_ = ifelse(Risk_lottery_populations_80 == "Option A", 0, 3)) %>% 
+  mutate(., Q4_Conservation_Risk_Rating_ = ifelse(Risk_lottery_populations_70 == "Option A", 0, 4)) %>% 
+  mutate(., Q5_Conservation_Risk_Rating_ = ifelse(Risk_lottery_populations_60 == "Option A", 0, 5)) %>% 
+  mutate(., Q6_Conservation_Risk_Rating_ = ifelse(Risk_lottery_populations_50 == "Option A", 0, 6)) %>% 
+  mutate(., Q7_Conservation_Risk_Rating_ = ifelse(Risk_lottery_populations_40 == "Option A", 0, 7)) %>% 
+  mutate(., Q8_Conservation_Risk_Rating_ = ifelse(Risk_lottery_populations_30 == "Option A", 0, 8)) %>% 
+  mutate(., Q9_Conservation_Risk_Rating_ = ifelse(Risk_lottery_populations_20 == "Option A", 0, 9)) %>% 
+  mutate(., Q10_Conservation_Risk_Rating_ = ifelse(Risk_lottery_populations_10 == "Option A", 0, 10)) %>% 
+  rowwise(.) %>% 
+  mutate(., Average_Cons_Risk_Rating_ = mean(c(Q1_Conservation_Risk_Rating_, Q2_Conservation_Risk_Rating_, Q3_Conservation_Risk_Rating_, Q4_Conservation_Risk_Rating_, Q5_Conservation_Risk_Rating_, Q6_Conservation_Risk_Rating_, Q7_Conservation_Risk_Rating_, Q8_Conservation_Risk_Rating_, Q9_Conservation_Risk_Rating_, Q10_Conservation_Risk_Rating_)))
+
+```
+
+
+
+Threshold 10% of dataset to make a variable significant in the regression. 
+
+List of things to do : 
+7) Manually (or with code) tidy the "Highest education level" variable. The "College" should be put as "Undergraduate", to reflect the higher education level that it is.
+
+8) Discuss with George about the missing values and how to deal with them: Remove them, impute the mean observation, impute with a predictive model or create dummy variables to bypass the whole thing?  (Same thing for "Char conservation interest" and "Sufficiently protected")
+
+For the true or false: ALSO, report in the text of the paper which answers were really common and interesting (eg. if people think that char are endangered).
+
+9) For "Arctic char qualities", record the common answers and report it in the paper and discuss. 
+
+11) Publications read: Keep the three dummies. Check correlation between that and the True or False score. 
+
+
+ABOUT NA'S in regression models: 
+https://bookdown.org/egarpor/PM-UC3M/app-nas.html 
+
+
+In the regression we include : 
+
+Gender, Birth, Country, Employment (Use employment VS study, use the dummy variables), Current position (University_DV + EPA_DV + Wildlife_DV), Highest education (Use only the dummies "Undergradute" and "Postgraduate"), Conservation experience (Use all the three as dummy variables), Confidence in Survey (once "I don't know" values are sorted), Char conservation interest, True or false score, Publications read (Use the three dummies), . 
+
+# 1) Dataset filtering and formatting. 
+
+## A) Filter completion level and data missingness
+
+For now we filter anything below 50 percent. 
+```{r}
+Survey_Dummy_Variables_Rowan_V2 <- Survey_Dummy_Variables_Rowan_V1_September2021 %>% 
+  filter(., Progress >= 70) %>% 
+  # Create a variable that summarises missing data.
+  mutate(MissingData = rowSums(is.na(.))) %>% 
+  filter(., MissingData <= 20) %>% 
+  select(., MissingData, everything())
+```
+apply(mtcars, MARGIN = 1, function(x) sum(is.na(x)))
+
+## B) Sort the "Country" variable.
+
+First we clean it. 
+```{r}
+Survey_Dummy_Variables_Rowan_V3 <- Survey_Dummy_Variables_Rowan_V2 %>% 
+  ## We need one row per special case.
+  mutate(., Country = if_else(condition = Country == "uk", true = "UK", false = Country)) %>% 
+  mutate(., Country = if_else(condition = Country == "GB", true = "UK", false = Country)) %>% 
+  mutate(., Country = if_else(condition = Country == "United Kingdom", true = "UK", false = Country)) %>% 
+  mutate(., Country = if_else(condition = Country == "ireland", true = "Ireland", false = Country)) %>% 
+  mutate(., Country = if_else(condition = Country == "Ireland.", true = "Ireland", false = Country)) %>% 
+  mutate(., Country = if_else(condition = Country == "canada", true = "Canada", false = Country)) %>% 
+  mutate(., Country = if_else(condition = Country == "germany", true = "Germany", false = Country)) %>% 
+  mutate(., Country = if_else(condition = Country == "N.Ireland", true = "Northern_Ireland", false = Country)) %>% 
+  mutate(., Country = if_else(condition = Country == "Nlreland", true = "Northern_Ireland", false = Country)) %>% 
+  mutate(., Country = if_else(condition = Country == "Northern Ireland", true = "Northern_Ireland", false = Country)) %>% 
+  ## Special_case : No country entered. 
+  mutate(., Country = if_else(condition = is.na(Country), true = "Unknown", false = Country)) %>% 
+  select(., Country, everything())
+```
+
+Then we add variables that are going to summarise them in upper groups. 
+```{r}
+Survey_Dummy_Variables_Rowan_V4 <- Survey_Dummy_Variables_Rowan_V3 %>% 
+  mutate(., Geographic_group = if_else(condition = Country %in% c("UK", "Ireland", "Northern_Ireland", "England", "Scotland", "Wales"), true = "North_Atlantic_Isles", false = if_else(condition = Country %in% c("Germany", "France", "Italy", "Norway", "Czech Republic", "Netherlands", "Sweden", "Denmark", "Finland", "Switzerland"), true = "Other_Europe", false = if_else(condition = Country %in% c("Canada", "USA"), true = "North_America", false = "WhereIsThat?" )))) %>% 
+  select(., Country,Geographic_group, everything())
+```
+
+## C) Sort the "Year of Birth" variable.
+
+```{r}
+Survey_Dummy_Variables_Rowan_V5 <- Survey_Dummy_Variables_Rowan_V4 %>% 
+  # Create the age variable
+  mutate(., Age = 2021 - as.numeric(Year_of_birth)) %>% 
+  # Group by class of age ! 
+  mutate(., Age_grouped = if_else(Age <= 30, "EarlyAge", if_else(Age >= 31 & Age <= 60, "MediumAge", if_else(Age >= 61, "OldAge", "Problem!!")))) %>% 
+  select(., Year_of_birth, Age,Age_grouped,  everything()) 
+```
+
+## D) Sort the "Current position" dummies.
+
+```{r}
+Survey_Dummy_Variables_Rowan_V6 <- Survey_Dummy_Variables_Rowan_V5 %>% 
+  separate(., Current_position, into = c("Position1", "Position2", "Position3"), sep = ",") %>% 
+  mutate(., University_Research_Dummy = if_else(condition = Position1 == "University (public) research" | Position2 == "University (public) research" | Position3 == "University (public) research", true = 1, false = 0, missing = 0)) %>%  
+  mutate(., Environmental_Protection_Agency_Dummy = if_else(condition = Position1 == "Environmental protection agency" | Position2 == "Environmental protection agency" | Position3 == "Environmental protection agency", true = 1, false = 0, missing = 0)) %>%  
+  mutate(., Wildlife_Conservation_Dummy = if_else(condition = Position1 == "Wildlife conservation agency" | Position2 == "Wildlife conservation agency" | Position3 == "Wildlife conservation agency", true = 1, false = 0, missing = 0)) %>% 
+  # It did the job, let's filter out those useless columns: 
+  select(., -c("Position1", "Position2","Position3"))
+  
+```
+
+## E) Sort the conservation experience variable
+
+  Change the conservation experience variable, put them all in dummy variables. 
+  Use gsub to remov the "Yes,".
+  
+```{r}
+Survey_Dummy_Variables_Rowan_V7 <- Survey_Dummy_Variables_Rowan_V6 %>% 
+  mutate(., Volunteering_Exp_Dummy = ifelse(grepl(pattern = "volunteering", x = Conservation_experience) == T, yes = "1",  no =  "0")) %>% 
+  mutate(., Work_Exp_Dummy = ifelse(grepl(pattern = "work", x = Conservation_experience) == T, yes = "1",  no =  "0")) %>% 
+  mutate(., Study_Exp_Dummy = ifelse(grepl(pattern = "studies", x = Conservation_experience) == T, yes = "1",  no =  "0")) 
+```
+
+
+## F) Sort the "I don't know"'s.
+
+Missing values and how to deal with them: Remove them, impute the mean observation, impute with a predictive model or create dummy variables to bypass the whole thing?  (Same thing for "Char conservation interest" and "Sufficiently protected")
+
+Let's inspect how much missing data we have in the first place !
+```{r}
+Survey_Dummy_Variables_Rowan_V7 %>% 
+  count(., Confidence_in_survey == "I don't know")
+```
+```{r}
+Survey_Dummy_Variables_Rowan_V7 %>% 
+  count(., Char_conservation_interest == "I don't know")
+```
+```{r}
+Survey_Dummy_Variables_Rowan_V7 %>% 
+  count(., Scale_Sufficently_Protected_First == "I don't know")
+```
+So quite low numbers after all. Let's turn them into the mean observation! 
+
+Calculate the mean of observations:
+```{r}
+Mean_Confidence_in_survey = mean(as.numeric(Survey_Dummy_Variables_Rowan_V7$Confidence_in_survey), na.rm = T)
+Mean_Char_conservation_interest = mean(as.numeric(Survey_Dummy_Variables_Rowan_V7$Char_conservation_interest), na.rm = T)
+Mean_Scale_Sufficently_Protected_First = mean(as.numeric(Survey_Dummy_Variables_Rowan_V7$Scale_Sufficently_Protected_First), na.rm = T)
+Mean_Scale_Sufficently_Protected_Second = mean(as.numeric(Survey_Dummy_Variables_Rowan_V7$Scale_Sufficently_Protected_Second), na.rm = T)
+
+Mean_Confidence_in_survey
+Mean_Char_conservation_interest
+Mean_Scale_Sufficently_Protected_First
+```
+Change the "I don't know" for the mean values
+```{r}
+Survey_Dummy_Variables_Rowan_V8 <- Survey_Dummy_Variables_Rowan_V7 %>% 
+  mutate(., Confidence_in_survey = ifelse(Confidence_in_survey == "I don't know", yes = Mean_Confidence_in_survey, no = Confidence_in_survey)) %>% 
+  mutate(., Char_conservation_interest = ifelse(Char_conservation_interest == "I don't know", yes = Mean_Char_conservation_interest, no = Char_conservation_interest)) %>% 
+  mutate(., Scale_Sufficently_Protected_First = ifelse(Scale_Sufficently_Protected_First == "I don't know", yes = Mean_Scale_Sufficently_Protected_First, no = Scale_Sufficently_Protected_First)) %>% 
+  mutate(., Scale_Sufficently_Protected_Second = ifelse(Scale_Sufficently_Protected_Second == "I don't know", yes = Mean_Scale_Sufficently_Protected_Second, no = Scale_Sufficently_Protected_Second))
+  
+```
+
+## G) Sort the "True or False"
+
+For the "True or false" : Use regex to create a dummy variable for each answer, then compute a score: +1 point for each true answer, -1 for each negative. ALSO, report in the text of the paper which answers were really common and interesting (eg. if people think that char are endangered).
+
+It is relatively easy but takes a few lines of code:
+We'll create score variables for each value found, and then sum up this into a global score variable.
+Then we remove the score variables and keep only the global score.
+```{r}
+# We need a function to operate the sum at the end
+p_sum <- function(...) {
+  rowSums(pick(...))
+}
+
+
+Survey_Dummy_Variables_Rowan_V9 <- Survey_Dummy_Variables_Rowan_V8 %>% 
+  # The true ones first: 
+  mutate(., TrueFalse_DV_3 = ifelse(grepl(pattern = "oldest", x = True_false_question) == T, yes = 1,  no =  "0")) %>% 
+  mutate(., TrueFalse_DV_5 = ifelse(grepl(pattern = "phenotypic", x = True_false_question) == T, yes = 1,  no =  "0")) %>% 
+  mutate(., TrueFalse_DV_6 = ifelse(grepl(pattern = "different", x = True_false_question) == T, yes = 1,  no =  "0")) %>% 
+  mutate(., TrueFalse_DV_7 = ifelse(grepl(pattern = "extinct", x = True_false_question) == T, yes = 1,  no =  "0")) %>% 
+  mutate(., TrueFalse_DV_9 = ifelse(grepl(pattern = "sensitive", x = True_false_question) == T, yes = 1,  no =  "0")) %>% 
+  mutate(., TrueFalse_DV_12= ifelse(grepl(pattern = "colorful", x = True_false_question) == T, yes = 1,  no =  "0")) %>% 
+  # Now the false one, minus one point: 
+  mutate(., TrueFalse_DV_1 = ifelse(grepl(pattern = "farming", x = True_false_question) == T, yes = -1,  no =  "0")) %>% 
+  mutate(., TrueFalse_DV_2 = ifelse(grepl(pattern = "IUCN", x = True_false_question) == T, yes = -1,  no =  "0")) %>% 
+  mutate(., TrueFalse_DV_4 = ifelse(grepl(pattern = "Brown", x = True_false_question) == T, yes = -1,  no =  "0")) %>% 
+  mutate(., TrueFalse_DV_8 = ifelse(grepl(pattern = "declined", x = True_false_question) == T, yes = -1,  no =  "0")) %>% 
+  mutate(., TrueFalse_DV_10= ifelse(grepl(pattern = "Climate", x = True_false_question) == T, yes = -1,  no =  "0")) %>% 
+  mutate(., TrueFalse_DV_11= ifelse(grepl(pattern = "Anadromous", x = True_false_question) == T, yes = -1,  no =  "0")) %>% 
+  # Make a score.
+  mutate(., TrueFalseScore = as.numeric(TrueFalse_DV_1)+ as.numeric(TrueFalse_DV_2)+ as.numeric(TrueFalse_DV_3)+ as.numeric(TrueFalse_DV_4)+ as.numeric(TrueFalse_DV_5)+ as.numeric(TrueFalse_DV_6)+ as.numeric(TrueFalse_DV_7)+ as.numeric(TrueFalse_DV_8)+ as.numeric(TrueFalse_DV_9) +as.numeric(TrueFalse_DV_10)+ as.numeric(TrueFalse_DV_11) + as.numeric(TrueFalse_DV_12)) %>% 
+  # Remove the crap.
+  select(., -c(TrueFalse_DV_1, TrueFalse_DV_2, TrueFalse_DV_3, TrueFalse_DV_4, TrueFalse_DV_5, TrueFalse_DV_6, TrueFalse_DV_7,TrueFalse_DV_8,TrueFalse_DV_9,TrueFalse_DV_10,TrueFalse_DV_11,TrueFalse_DV_12))
+```
+
+
+## H) Simple version 
+
+Make a Simple version of the table
+```{r}
+Survey_Dummy_Variables_Rowan_Simple_V1 <- Survey_Dummy_Variables_Rowan_V9 %>% 
+  select(., - c(Year_of_birth, Age, Gender, Employment_status, Highest_education_level, Conservation_experience, Useless, True_false_question, Publications_read, Risk_lottery_money_99, Risk_lottery_money_90, Risk_lottery_money_80, Risk_lottery_money_70, Risk_lottery_money_60, Risk_lottery_money_50, Risk_lottery_money_40, Risk_lottery_money_30, Risk_lottery_money_20, Risk_lottery_money_10, Risk_lottery_populations_99, Risk_lottery_populations_90, Risk_lottery_populations_80, Risk_lottery_populations_70, Risk_lottery_populations_60, Risk_lottery_populations_50, Risk_lottery_populations_40, Risk_lottery_populations_30, Risk_lottery_populations_20, Risk_lottery_populations_10, Q1_Risk_Rating, Q2_Risk_Rating, Q3_Risk_Rating, Q4_Risk_Rating, Q5_Risk_Rating, Q6_Risk_Rating, Q7_Risk_Rating, Q8_Risk_Rating, Q9_Risk_Rating, Q10_Risk_Rating, Q1_Conservation_Risk_Rating_, Q2_Conservation_Risk_Rating_, Q3_Conservation_Risk_Rating_, Q4_Conservation_Risk_Rating_, Q5_Conservation_Risk_Rating_, Q6_Conservation_Risk_Rating_, Q7_Conservation_Risk_Rating_, Q8_Conservation_Risk_Rating_, Q9_Conservation_Risk_Rating_, Q10_Conservation_Risk_Rating_))
+
+Survey_Dummy_Variables_Rowan_Simple_V1$Work_Exp_Dummy <- as.numeric(Survey_Dummy_Variables_Rowan_Simple_V1$Work_Exp_Dummy)
+Survey_Dummy_Variables_Rowan_Simple_V1$Study_Exp_Dummy <- as.numeric(Survey_Dummy_Variables_Rowan_Simple_V1$Study_Exp_Dummy)
+Survey_Dummy_Variables_Rowan_Simple_V1$Volunteering_Exp_Dummy <- as.numeric(Survey_Dummy_Variables_Rowan_Simple_V1$Volunteering_Exp_Dummy)
+Survey_Dummy_Variables_Rowan_Simple_V1$Confidence_in_survey <- as.numeric(Survey_Dummy_Variables_Rowan_Simple_V1$Confidence_in_survey)
+Survey_Dummy_Variables_Rowan_Simple_V1$Char_conservation_interest <- as.numeric(Survey_Dummy_Variables_Rowan_Simple_V1$Char_conservation_interest)
+Survey_Dummy_Variables_Rowan_Simple_V1$Scale_Sufficently_Protected_First <- as.numeric(Survey_Dummy_Variables_Rowan_Simple_V1$Scale_Sufficently_Protected_First)
+Survey_Dummy_Variables_Rowan_Simple_V1$Scale_Sufficently_Protected_Second <- as.numeric(Survey_Dummy_Variables_Rowan_Simple_V1$Scale_Sufficently_Protected_Second)
+```
+
+```{r}
+summary(Survey_Dummy_Variables_Rowan_Simple_V1)
+```
+
+
+
+# 2) Some plotting: 
+
+```{r}
+esquisser(Survey_Dummy_Variables_Rowan_Simple_V1)
+```
+
+
+
+
+
+# Now the model
+
+```{r}
+Survey_Dummy_Variables_Rowan_V3 <- Survey_Dummy_Variables_Rowan_V2 %>% 
+  filter(., Confidence_in_survey != "I don't know") %>% 
+  filter(., Char_conservation_interest != "I don't know") %>% 
+#  mutate(., Conservation_experience_tidy = Conservation_experience) # 
+  select(., Confidence_in_survey, Char_conservation_interest, Highest_education_level) 
+
+# Sort the variable types: 
+Survey_Dummy_Variables_Rowan_V3$Confidence_in_survey <- as.numeric(Survey_Dummy_Variables_Rowan_V3$Confidence_in_survey)
+Survey_Dummy_Variables_Rowan_V3$Char_conservation_interest <- as.numeric(Survey_Dummy_Variables_Rowan_V3$Char_conservation_interest)
+
+linearMod <- lm(Confidence_in_survey ~ Char_conservation_interest + Highest_education_level, data=Survey_Dummy_Variables_Rowan_V3)  # build linear regression model on full data
+summary(linearMod)
+```
+
+
+```{r}
+esquisse::esquisser()
+
+```
+
+
+```{r}
+
+```
 
 This works
