@@ -83,14 +83,24 @@ For the true or false: ALSO, report in the text of the paper which answers were 
 
 11) Publications read: Keep the three dummies. Check correlation between that and the True or False score. 
 
+Next meeting: 10/09/2021 
+
+12) Get the CRRA into a code.
+
+More info about the CRRA : http://library.lshtm.ac.uk/MSc_PHDC/2014-2015/108643.pdf 
+*** 
+What we did is replaced the "inf" value of CRRA by -2 for VERY risk lobing people
+AND by -2.5 for the people who never switched ! 
+***
+
+
+
 
 ABOUT NA'S in regression models: 
 https://bookdown.org/egarpor/PM-UC3M/app-nas.html 
 
 
-In the regression we include : 
 
-Gender, Birth, Country, Employment (Use employment VS study, use the dummy variables), Current position (University_DV + EPA_DV + Wildlife_DV), Highest education (Use only the dummies "Undergradute" and "Postgraduate"), Conservation experience (Use all the three as dummy variables), Confidence in Survey (once "I don't know" values are sorted), Char conservation interest, True or false score, Publications read (Use the three dummies), . 
 
 # 1) Dataset filtering and formatting. 
 
@@ -246,13 +256,50 @@ Survey_Dummy_Variables_Rowan_V9 <- Survey_Dummy_Variables_Rowan_V8 %>%
   # Remove the crap.
   select(., -c(TrueFalse_DV_1, TrueFalse_DV_2, TrueFalse_DV_3, TrueFalse_DV_4, TrueFalse_DV_5, TrueFalse_DV_6, TrueFalse_DV_7,TrueFalse_DV_8,TrueFalse_DV_9,TrueFalse_DV_10,TrueFalse_DV_11,TrueFalse_DV_12))
 ```
+## H) Calculate the "Lottery switch" and "CRRA" values
+
+Basically, when are they switching from B to A ?
+
+	CRRA
+1	0.98
+2	0.84
+3	0.67
+4	0.48
+5	0.26
+6	0
+7	-0.33
+8	-0.74
+9	-1.33
+10	inf  
+
+Less than 0 is risk loving 	
+0 is risk neutral 	
+More than 0 is risk averse	
+
+### I) For the money lottery
+```{r}
+Survey_Dummy_Variables_Rowan_V10 <- Survey_Dummy_Variables_Rowan_V9 %>% 
+  mutate(., Money_Switch = ifelse(Risk_lottery_money_99 == "Option A", "99", ifelse(Risk_lottery_money_90 == "Option A", "90", ifelse(Risk_lottery_money_80 == "Option A", "80",ifelse(Risk_lottery_money_70 == "Option A", "70", ifelse(Risk_lottery_money_60 == "Option A", "60", ifelse(Risk_lottery_money_50 == "Option A", "50", ifelse(Risk_lottery_money_40 == "Option A", "40", ifelse(Risk_lottery_money_30 == "Option A", "30", ifelse(Risk_lottery_money_30 == "Option A", "30", ifelse(Risk_lottery_money_20 == "Option A", "20", ifelse(Risk_lottery_money_10 == "Option A", "10", "0"))) )))) ) )) )) %>% 
+  
+  # Get the CRRA into the code 
+  mutate(., Money_CRRA = ifelse(Money_Switch == "99", 0.98, ifelse(Money_Switch == "90", 0.84, ifelse(Money_Switch == "80", 0.67, ifelse(Money_Switch == "70", 0.48, ifelse(Money_Switch == "60", 0.26, ifelse(Money_Switch == "50", 0, ifelse(Money_Switch == "40", -0.33, ifelse(Money_Switch == "30", -0.74, ifelse(Money_Switch == "20", -1.33, ifelse(Money_Switch == "10", -2, no = -2.5) )) ) )))))))
+```
+
+### II) For the population lottery
+```{r}
+Survey_Dummy_Variables_Rowan_V11 <- Survey_Dummy_Variables_Rowan_V10 %>% 
+  mutate(., Pop_Switch = ifelse(Risk_lottery_populations_99 == "Option A", "99", ifelse(Risk_lottery_populations_90 == "Option A", "90", ifelse(Risk_lottery_populations_80 == "Option A", "80",ifelse(Risk_lottery_populations_70 == "Option A", "70", ifelse(Risk_lottery_populations_60 == "Option A", "60", ifelse(Risk_lottery_populations_50 == "Option A", "50", ifelse(Risk_lottery_populations_40 == "Option A", "40", ifelse(Risk_lottery_populations_30 == "Option A", "30", ifelse(Risk_lottery_populations_30 == "Option A", "30", ifelse(Risk_lottery_populations_20 == "Option A", "20", ifelse(Risk_lottery_populations_10 == "Option A", "10", "0"))) )))) ) )) )) %>% 
+  
+  # Get the CRRA into the code 
+  mutate(., Pop_CRRA = ifelse(Pop_Switch == "99", 0.98, ifelse(Pop_Switch == "90", 0.84, ifelse(Pop_Switch == "80", 0.67, ifelse(Pop_Switch == "70", 0.48, ifelse(Pop_Switch == "60", 0.26, ifelse(Pop_Switch == "50", 0, ifelse(Pop_Switch == "40", -0.33, ifelse(Pop_Switch == "30", -0.74, ifelse(Pop_Switch == "20", -1.33, ifelse(Pop_Switch == "10", -2, no = -2.5) )) ) )))))))
+```
 
 
-## H) Simple version 
+## I) Simple version 
 
 Make a Simple version of the table
 ```{r}
-Survey_Dummy_Variables_Rowan_Simple_V1 <- Survey_Dummy_Variables_Rowan_V9 %>% 
+Survey_Dummy_Variables_Rowan_Simple_V1 <- Survey_Dummy_Variables_Rowan_V11 %>% 
   select(., - c(Year_of_birth, Age, Gender, Employment_status, Highest_education_level, Conservation_experience, Useless, True_false_question, Publications_read, Risk_lottery_money_99, Risk_lottery_money_90, Risk_lottery_money_80, Risk_lottery_money_70, Risk_lottery_money_60, Risk_lottery_money_50, Risk_lottery_money_40, Risk_lottery_money_30, Risk_lottery_money_20, Risk_lottery_money_10, Risk_lottery_populations_99, Risk_lottery_populations_90, Risk_lottery_populations_80, Risk_lottery_populations_70, Risk_lottery_populations_60, Risk_lottery_populations_50, Risk_lottery_populations_40, Risk_lottery_populations_30, Risk_lottery_populations_20, Risk_lottery_populations_10, Q1_Risk_Rating, Q2_Risk_Rating, Q3_Risk_Rating, Q4_Risk_Rating, Q5_Risk_Rating, Q6_Risk_Rating, Q7_Risk_Rating, Q8_Risk_Rating, Q9_Risk_Rating, Q10_Risk_Rating, Q1_Conservation_Risk_Rating_, Q2_Conservation_Risk_Rating_, Q3_Conservation_Risk_Rating_, Q4_Conservation_Risk_Rating_, Q5_Conservation_Risk_Rating_, Q6_Conservation_Risk_Rating_, Q7_Conservation_Risk_Rating_, Q8_Conservation_Risk_Rating_, Q9_Conservation_Risk_Rating_, Q10_Conservation_Risk_Rating_))
 
 Survey_Dummy_Variables_Rowan_Simple_V1$Work_Exp_Dummy <- as.numeric(Survey_Dummy_Variables_Rowan_Simple_V1$Work_Exp_Dummy)
@@ -265,22 +312,22 @@ Survey_Dummy_Variables_Rowan_Simple_V1$Scale_Sufficently_Protected_Second <- as.
 ```
 
 ```{r}
-summary(Survey_Dummy_Variables_Rowan_Simple_V1)
+# summary(Survey_Dummy_Variables_Rowan_Simple_V1)
 ```
 
+## J)
+```{r}
 
+```
 
 # 2) Some plotting: 
 
 ```{r}
-esquisser(Survey_Dummy_Variables_Rowan_Simple_V1)
+# esquisser(Survey_Dummy_Variables_Rowan_Simple_V1)
 ```
 
 
-
-
-
-# Now the model
+# 3) Now the model
 
 ```{r}
 Survey_Dummy_Variables_Rowan_V3 <- Survey_Dummy_Variables_Rowan_V2 %>% 
@@ -296,7 +343,9 @@ Survey_Dummy_Variables_Rowan_V3$Char_conservation_interest <- as.numeric(Survey_
 linearMod <- lm(Confidence_in_survey ~ Char_conservation_interest + Highest_education_level, data=Survey_Dummy_Variables_Rowan_V3)  # build linear regression model on full data
 summary(linearMod)
 ```
+In the regression we include : 
 
+Gender, Birth, Country, Employment (Use employment VS study, use the dummy variables), Current position (University_DV + EPA_DV + Wildlife_DV), Highest education (Use only the dummies "Undergradute" and "Postgraduate"), Conservation experience (Use all the three as dummy variables), Confidence in Survey (once "I don't know" values are sorted), Char conservation interest, True or false score, Publications read (Use the three dummies), . 
 
 ```{r}
 esquisse::esquisser()
