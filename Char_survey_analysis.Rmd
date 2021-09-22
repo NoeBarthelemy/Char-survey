@@ -9,6 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+# Library
 ```{r}
 library(tidyverse)
 library(readxl)
@@ -19,7 +20,6 @@ This is empty but I needed a script to try the sharing process with Rowan.
 
 ```{r}
 Survey_Dummy_Variables_Rowan_V1_NB_edits <- read_excel("~/Bureau/PHD/Ongoing_Projects/Economics/DATA_SURVEY/Survey Dummy Variables_Rowan_V1_SEP2021.xlsx")
-View(Survey_Dummy_Variables_Rowan_V1_NB_edits)
 
 # Keep that one stored as backup object 
 # Original_from_Rowan_BACKUP <- Survey_Dummy_Variables_Rowan_V1_NB_edits
@@ -93,6 +93,18 @@ What we did is replaced the "inf" value of CRRA by -2 for VERY risk lobing peopl
 AND by -2.5 for the people who never switched ! 
 ***
 
+After meeting : 
+
+13) Check if the respondents who allocated more to HR in round 1 than in Round 2 (weird!) actually anticipated more than others that the LR pops could be unique too !
+
+
+
+
+
+
+
+
+
 
 
 
@@ -108,12 +120,24 @@ https://bookdown.org/egarpor/PM-UC3M/app-nas.html
 
 For now we filter anything below 50 percent. 
 ```{r}
+# At this point I'm also going to add random names to the answers using the babynames dataset
+# Add a unique ID to each answer
+ 
+library(babynames)
+data(babynames)
+
+Baby_names_only <- babynames %>% select(., name) %>% unique()
+
+# Commented line below so that the names don't change once sampled! 
+# Baby_names_sample <- sample_n(Baby_names_only, nrow(Survey_Dummy_Variables_Rowan_V1_September2021)) 
+Survey_Dummy_Variables_Rowan_V1_September2021 <- cbind(Baby_names_sample, Survey_Dummy_Variables_Rowan_V1_September2021)
+
 Survey_Dummy_Variables_Rowan_V2 <- Survey_Dummy_Variables_Rowan_V1_September2021 %>% 
   filter(., Progress >= 70) %>% 
   # Create a variable that summarises missing data.
   mutate(MissingData = rowSums(is.na(.))) %>% 
   filter(., MissingData <= 20) %>% 
-  select(., MissingData, everything())
+  select(., MissingData, everything()) 
 ```
 apply(mtcars, MARGIN = 1, function(x) sum(is.na(x)))
 
@@ -294,13 +318,116 @@ Survey_Dummy_Variables_Rowan_V11 <- Survey_Dummy_Variables_Rowan_V10 %>%
   mutate(., Pop_CRRA = ifelse(Pop_Switch == "99", 0.98, ifelse(Pop_Switch == "90", 0.84, ifelse(Pop_Switch == "80", 0.67, ifelse(Pop_Switch == "70", 0.48, ifelse(Pop_Switch == "60", 0.26, ifelse(Pop_Switch == "50", 0, ifelse(Pop_Switch == "40", -0.33, ifelse(Pop_Switch == "30", -0.74, ifelse(Pop_Switch == "20", -1.33, ifelse(Pop_Switch == "10", -2, no = -2.5) )) ) )))))))
 ```
 
+## I) Sort the allocation budget variables
 
-## I) Simple version 
+This is the new information given before Round 2: 
+
+Initial round = All pops are of equal conservation status.
+The 10 HR populations contains some unique genetic lineages.
+Extinction of these = irremediable loss of genetic diversity of the oldest native fish species.
+
+The interpretation is (From High Risk prospective): 
+If from Round 1 to Round 2 allocation to HR goes UP : The respondent thought the HR were more valuable in the light of the new info (which highlights the uniqueness and the risk of huge loss). 
+--> This is the most expected behavior.
+
+If from Round 1 to Round 2 allocation to HR goes DOWN : Respondent thought the HR were not that valuable anymore. 
+--> This is the less expected behavior. Maybe correlated to anticipation that LR can be unique too? 
+
+If from Round 1 to Round 2 allocation to HR stays SAME : Respondent is unaffected by the info. 
+--> Not expected. Either lack of understanding (test if correlated with duration) or maybe anticipation that LR can be unique too FROM THE START ! 
+--> Unique case: If it stays the same at zero, could be that respondent attributes no value to the information compared to the fact that more populations can be saved by protecting the LR.
+
+```{r}
+Survey_Dummy_Variables_Rowan_V12 <- Survey_Dummy_Variables_Rowan_V11 %>% 
+  
+  # Create a nicer variable for Round 1:
+  mutate(Alloc_LR_Round1 = ifelse(is.na(Risk_Reduction_LR_14_percent) & is.na(Risk_Reduction_LR_20_percent), NA, ifelse(is.na(Risk_Reduction_LR_20_percent), Risk_Reduction_LR_14_percent, ifelse(is.na(Risk_Reduction_LR_14_percent), Risk_Reduction_LR_20_percent, "Problem")))) %>% 
+  mutate(Alloc_HR_Round1 = ifelse(is.na(Risk_Reduction_HR_50_percent) & is.na(Risk_Reduction_HR_70_percent), NA, ifelse(is.na(Risk_Reduction_HR_70_percent), Risk_Reduction_HR_50_percent, ifelse(is.na(Risk_Reduction_HR_50_percent), Risk_Reduction_HR_70_percent, "Problem")))) %>% 
+  # Create a nicer variable for Round 2:
+  mutate(Alloc_LR_Round2 = Risk_Reduction_LR_40_percent_Round_2) %>% 
+  mutate(Alloc_HR_Round2 = Risk_Reduction_HR_80_percent_Round_2) %>% 
+  # Create a nicer variable for Round 3:
+  mutate(Alloc_LR_Round3 = Risk_Reduction_LR_40_percent_Round_3) %>% 
+  mutate(Alloc_HR_Round3 = Risk_Reduction_HR_80_percent_Round_3) %>% 
+  
+  # Create a variable that summarises the allocation profile of a respondent: 
+  # The idea is : Does the allocation goes up, or down? And then, up, down, the same?
+  # To do that we need to put the focus on either the low risk or High risk.
+  # I chose the High Risk allocation.
+  mutate(., Alloc_profile_Round1to2 = ifelse(as.numeric(Alloc_HR_Round1) > as.numeric(Alloc_HR_Round2), "Down", ifelse(Alloc_HR_Round1 < Alloc_HR_Round2, "Up", ifelse(Alloc_HR_Round1 == Alloc_HR_Round2, "Same", "Problem")))) %>% 
+  mutate(., Alloc_profile_Round2to3 = ifelse(Alloc_HR_Round2 > Alloc_HR_Round3, "Down", ifelse(Alloc_HR_Round2 < Alloc_HR_Round3, "Up", ifelse(Alloc_HR_Round2 == Alloc_HR_Round3, "Same", "Problem")))) %>% 
+
+  unite("Alloc_profile_AllRounds", Alloc_profile_Round1to2, Alloc_profile_Round2to3, sep = "-", remove = F)  %>%   
+  
+  # Quantify this profile 
+  mutate(., Alloc_diff_Round1to2 = as.numeric(Alloc_HR_Round2) - as.numeric(Alloc_HR_Round1)) %>% 
+  mutate(., Alloc_diff_Round2to3 = as.numeric(Alloc_HR_Round3) - as.numeric(Alloc_HR_Round2))
+
+```
+
+```{r}
+# Prepare some data for a plot : 
+Allocation_diff_Round1to2 <- Survey_Dummy_Variables_Rowan_V12 %>% 
+  select(Alloc_diff_Round1to2) %>% 
+  rename(., Alloc_diff = "Alloc_diff_Round1to2") %>% 
+  mutate(., Round = "One to two")
+Allocation_diff_Round2to3 <- Survey_Dummy_Variables_Rowan_V12 %>% 
+  select(Alloc_diff_Round2to3) %>% 
+  rename(., Alloc_diff = "Alloc_diff_Round2to3") %>% 
+  mutate(., Round = "Two to three")
+
+Allocation_differences <- rbind(Allocation_diff_Round1to2, Allocation_diff_Round2to3)
+
+# Now a nice density plot
+ggplot(Allocation_differences, aes(x = Alloc_diff, fill = Round)) + geom_density(alpha = 0.5) +
+ labs(x = "Difference of budget allocation to High-Risk populations between Rounds", y = "Density", title = "Niceplot") +
+ theme_minimal()
+```
+```{r}
+# Another plot to see the evolution in budget allocation 
+Allocation_budgets1 <- Survey_Dummy_Variables_Rowan_V12 %>% 
+  select(., Alloc_HR_Round1, Alloc_LR_Round1, name) %>% 
+  mutate(., Round = 1) %>% 
+  rename(., Budget_alloc_HR = "Alloc_HR_Round1") %>% 
+  rename(., Budget_alloc_LR = "Alloc_LR_Round1") 
+Allocation_budgets2 <- Survey_Dummy_Variables_Rowan_V12 %>% 
+  select(., Alloc_HR_Round2, Alloc_LR_Round2, name)%>% 
+  mutate(., Round = 2) %>% 
+  rename(., Budget_alloc_HR = "Alloc_HR_Round2") %>% 
+  rename(., Budget_alloc_LR = "Alloc_LR_Round2") 
+Allocation_budgets3 <- Survey_Dummy_Variables_Rowan_V12 %>% 
+  select(., Alloc_HR_Round3, Alloc_LR_Round3, name)%>% 
+  mutate(., Round = 3) %>% 
+  rename(., Budget_alloc_HR = "Alloc_HR_Round3") %>% 
+  rename(., Budget_alloc_LR = "Alloc_LR_Round3") 
+
+
+Allocation_budgets <- rbind(Allocation_budgets1, Allocation_budgets2, Allocation_budgets3)
+Allocation_budgets$Budget_alloc_HR <- as.numeric(Allocation_budgets$Budget_alloc_HR)
+Allocation_budgets$Budget_alloc_LR <- as.numeric(Allocation_budgets$Budget_alloc_LR)
+
+
+```
+# NEED HELP TO PLOT THAT
+
+```{r}
+mean(Survey_Dummy_Variables_Rowan_V12$Alloc_diff_Round1to2, na.rm = T)
+mean(Survey_Dummy_Variables_Rowan_V12$Alloc_diff_Round2to3, na.rm = T)
+mean(as.numeric(Allocation_budgets1$Budget_alloc_HR), na.rm = T)
+mean(as.numeric(Allocation_budgets1$Budget_alloc_LR), na.rm = T)
+mean(Allocation_budgets2$Budget_alloc_HR, na.rm = T)
+mean(Allocation_budgets2$Budget_alloc_LR, na.rm = T)
+mean(Allocation_budgets3$Budget_alloc_HR, na.rm = T)
+mean(Allocation_budgets3$Budget_alloc_LR, na.rm = T)
+```
+
+
+## J) Simple version 
 
 Make a Simple version of the table
 ```{r}
-Survey_Dummy_Variables_Rowan_Simple_V1 <- Survey_Dummy_Variables_Rowan_V11 %>% 
-  select(., - c(Year_of_birth, Age, Gender, Employment_status, Highest_education_level, Conservation_experience, Useless, True_false_question, Publications_read, Risk_lottery_money_99, Risk_lottery_money_90, Risk_lottery_money_80, Risk_lottery_money_70, Risk_lottery_money_60, Risk_lottery_money_50, Risk_lottery_money_40, Risk_lottery_money_30, Risk_lottery_money_20, Risk_lottery_money_10, Risk_lottery_populations_99, Risk_lottery_populations_90, Risk_lottery_populations_80, Risk_lottery_populations_70, Risk_lottery_populations_60, Risk_lottery_populations_50, Risk_lottery_populations_40, Risk_lottery_populations_30, Risk_lottery_populations_20, Risk_lottery_populations_10, Q1_Risk_Rating, Q2_Risk_Rating, Q3_Risk_Rating, Q4_Risk_Rating, Q5_Risk_Rating, Q6_Risk_Rating, Q7_Risk_Rating, Q8_Risk_Rating, Q9_Risk_Rating, Q10_Risk_Rating, Q1_Conservation_Risk_Rating_, Q2_Conservation_Risk_Rating_, Q3_Conservation_Risk_Rating_, Q4_Conservation_Risk_Rating_, Q5_Conservation_Risk_Rating_, Q6_Conservation_Risk_Rating_, Q7_Conservation_Risk_Rating_, Q8_Conservation_Risk_Rating_, Q9_Conservation_Risk_Rating_, Q10_Conservation_Risk_Rating_))
+Survey_Dummy_Variables_Rowan_Simple_V1 <- Survey_Dummy_Variables_Rowan_V12 %>% 
+  select(., - c(Year_of_birth, Age, Employment_status, Highest_education_level, Conservation_experience, Useless, True_false_question, Publications_read, Risk_lottery_money_99, Risk_lottery_money_90, Risk_lottery_money_80, Risk_lottery_money_70, Risk_lottery_money_60, Risk_lottery_money_50, Risk_lottery_money_40, Risk_lottery_money_30, Risk_lottery_money_20, Risk_lottery_money_10, Risk_lottery_populations_99, Risk_lottery_populations_90, Risk_lottery_populations_80, Risk_lottery_populations_70, Risk_lottery_populations_60, Risk_lottery_populations_50, Risk_lottery_populations_40, Risk_lottery_populations_30, Risk_lottery_populations_20, Risk_lottery_populations_10, Q1_Risk_Rating, Q2_Risk_Rating, Q3_Risk_Rating, Q4_Risk_Rating, Q5_Risk_Rating, Q6_Risk_Rating, Q7_Risk_Rating, Q8_Risk_Rating, Q9_Risk_Rating, Q10_Risk_Rating, Q1_Conservation_Risk_Rating_, Q2_Conservation_Risk_Rating_, Q3_Conservation_Risk_Rating_, Q4_Conservation_Risk_Rating_, Q5_Conservation_Risk_Rating_, Q6_Conservation_Risk_Rating_, Q7_Conservation_Risk_Rating_, Q8_Conservation_Risk_Rating_, Q9_Conservation_Risk_Rating_, Q10_Conservation_Risk_Rating_, Risk_Reduction_LR_14_percent, Risk_Reduction_LR_20_percent, Risk_Reduction_HR_70_percent, Risk_Reduction_HR_50_percent, Risk_Reduction_LR_40_percent_Round_2, Risk_Reduction_HR_80_percent_Round_2, Risk_Reduction_LR_40_percent_Round_3, Risk_Reduction_HR_80_percent_Round_3))
 
 Survey_Dummy_Variables_Rowan_Simple_V1$Work_Exp_Dummy <- as.numeric(Survey_Dummy_Variables_Rowan_Simple_V1$Work_Exp_Dummy)
 Survey_Dummy_Variables_Rowan_Simple_V1$Study_Exp_Dummy <- as.numeric(Survey_Dummy_Variables_Rowan_Simple_V1$Study_Exp_Dummy)
@@ -309,13 +436,17 @@ Survey_Dummy_Variables_Rowan_Simple_V1$Confidence_in_survey <- as.numeric(Survey
 Survey_Dummy_Variables_Rowan_Simple_V1$Char_conservation_interest <- as.numeric(Survey_Dummy_Variables_Rowan_Simple_V1$Char_conservation_interest)
 Survey_Dummy_Variables_Rowan_Simple_V1$Scale_Sufficently_Protected_First <- as.numeric(Survey_Dummy_Variables_Rowan_Simple_V1$Scale_Sufficently_Protected_First)
 Survey_Dummy_Variables_Rowan_Simple_V1$Scale_Sufficently_Protected_Second <- as.numeric(Survey_Dummy_Variables_Rowan_Simple_V1$Scale_Sufficently_Protected_Second)
+Survey_Dummy_Variables_Rowan_Simple_V1$Alloc_HR_Round1 <- as.numeric(Survey_Dummy_Variables_Rowan_Simple_V1$Alloc_HR_Round1)
+Survey_Dummy_Variables_Rowan_Simple_V1$Money_Switch <- as.numeric(Survey_Dummy_Variables_Rowan_Simple_V1$Money_Switch)
+Survey_Dummy_Variables_Rowan_Simple_V1$Pop_Switch <- as.numeric(Survey_Dummy_Variables_Rowan_Simple_V1$Pop_Switch)
+Survey_Dummy_Variables_Rowan_Simple_V1$Pop_CRRA <- as.numeric(Survey_Dummy_Variables_Rowan_Simple_V1$Pop_CRRA)
 ```
 
 ```{r}
 # summary(Survey_Dummy_Variables_Rowan_Simple_V1)
 ```
 
-## J)
+## K)
 ```{r}
 
 ```
@@ -329,32 +460,261 @@ Survey_Dummy_Variables_Rowan_Simple_V1$Scale_Sufficently_Protected_Second <- as.
 
 # 3) Now the model
 
-```{r}
-Survey_Dummy_Variables_Rowan_V3 <- Survey_Dummy_Variables_Rowan_V2 %>% 
-  filter(., Confidence_in_survey != "I don't know") %>% 
-  filter(., Char_conservation_interest != "I don't know") %>% 
-#  mutate(., Conservation_experience_tidy = Conservation_experience) # 
-  select(., Confidence_in_survey, Char_conservation_interest, Highest_education_level) 
-
-# Sort the variable types: 
-Survey_Dummy_Variables_Rowan_V3$Confidence_in_survey <- as.numeric(Survey_Dummy_Variables_Rowan_V3$Confidence_in_survey)
-Survey_Dummy_Variables_Rowan_V3$Char_conservation_interest <- as.numeric(Survey_Dummy_Variables_Rowan_V3$Char_conservation_interest)
-
-linearMod <- lm(Confidence_in_survey ~ Char_conservation_interest + Highest_education_level, data=Survey_Dummy_Variables_Rowan_V3)  # build linear regression model on full data
-summary(linearMod)
-```
 In the regression we include : 
 
 Gender, Birth, Country, Employment (Use employment VS study, use the dummy variables), Current position (University_DV + EPA_DV + Wildlife_DV), Highest education (Use only the dummies "Undergradute" and "Postgraduate"), Conservation experience (Use all the three as dummy variables), Confidence in Survey (once "I don't know" values are sorted), Char conservation interest, True or false score, Publications read (Use the three dummies), . 
 
 ```{r}
-esquisse::esquisser()
 
 ```
 
+## Model Round 1) 
+
+These budget allocation models will use the allocation amount to HR populations as a response variable, 
+and all the remaining variables as explanatory.
+
+We will try this Round per Round first and see what we get.
+
++ = I took this one into the model
+
+ [1] "Age_grouped"                            +                                                     
+ [2] "Country"                                                                          
+ [3] "Geographic_group"                       +                                                    
+ [4] "name"                                                                             
+ [5] "Progress"                                                                         
+ [6] "Duration"                               +                                                    
+ [7] "Finished"                                                                         
+ [8] "Gender"                                 +                                                    
+ [9] "Male"                                                                                       
+[10] "Female"                                                                           
+[11] "Employed_Dummy"                         +                                                    
+[12] "Student_Dummy"                          +                                                    
+[13] "Retired_Dummy"                          +                                                    
+[14] "University_Research_Dummy"              +                                          
+[15] "Environmental_Protection_Agency_Dummy"  +                                          
+[16] "Wildlife_Conservation_Dummy"            +                                          
+[17] "Current_position_other"                                                           
+[18] "Undergrad_Dummy"                        +                                          
+[19] "Postgrad_Dummy"                         +                                          
+[20] "Highest_education_level_other"                                                    
+[21] "Work_Exp_Dummy"                         +                                          
+[22] "Study_Exp_Dummy"                        +                                          
+[23] "Volunteering_Exp_Dummy"                 +                                          
+[24] "Confidence_in_survey"                   +                                          
+[25] "Char_conservation_interest"             +                                          
+[26] "Arctic_char_qualities"                                                            
+[27] "No_Papers_Dummy"                        +                                          
+[28] "Some_Papers_Dummy"                      +                                          
+[29] "Many_Papers_Dummy"                      +                                          
+[30] "Scale_Sufficently_Protected_First"      +                                          
+[31] "Average_Lotto_Risk_Rating"                                                        
+[32] "Average_Cons_Risk_Rating_"                                                        
+[33] "Information_anticipation"                                                         
+[34] "Did_you_feel_comfortable_with_
+the_budget_allocation_experiment?_-_Selected_Choice"
+[35] "Comfortable_with_experiment"                                                      
+[36] "Scale_Sufficently_Protected_Second"     +                                          
+[37] "Taxonomy"                                                                         
+[38] "Survey_comments"                                                                  
+[39] "Group"                                  +                                          
+[40] "TrueFalseScore"                         +                                          
+[41] "Money_Switch"                           +                                          
+[42] "Money_CRRA"                             +                                          
+[43] "Pop_Switch"                             +                                          
+[44] "Pop_CRRA"                               +                                          
+[45] "Alloc_LR_Round1"                                                                  
+[46] "Alloc_HR_Round1"                                                                  
+[47] "Alloc_LR_Round2"                                                                  
+[48] "Alloc_HR_Round2"                        +                                          
+[49] "Alloc_LR_Round3"                                                                  
+[50] "Alloc_HR_Round3"                        +                                          
+[51] "Alloc_profile_AllRounds"                +                                          
+[52] "Alloc_profile_Round1to2"                                                          
+[53] "Alloc_profile_Round2to3"                                                          
+[54] "Alloc_diff_Round1to2"                                                             
+[55] "Alloc_diff_Round2to3"   
 
 ```{r}
-
+Linearmod_test_Round1 <- lm(formula = Alloc_HR_Round1 ~ 
+                          Age_grouped + 
+                          Geographic_group + 
+                          Duration + 
+                          Gender + 
+                          Employed_Dummy + 
+                          Student_Dummy + 
+                          Retired_Dummy + 
+                          University_Research_Dummy +
+                          Environmental_Protection_Agency_Dummy +
+                          Wildlife_Conservation_Dummy +
+                          Undergrad_Dummy + 
+                          Postgrad_Dummy +
+                          Work_Exp_Dummy +
+                          Study_Exp_Dummy +
+                          Volunteering_Exp_Dummy +
+                          Confidence_in_survey +
+                          Char_conservation_interest +
+                          # No_Papers_Dummy +  Removed as in total collinearity with Many papers dummy
+                          Some_Papers_Dummy +
+                          Many_Papers_Dummy +
+                          Scale_Sufficently_Protected_First +
+                          Scale_Sufficently_Protected_Second +
+                          Group +
+                          TrueFalseScore +
+                          Money_Switch +
+                          Money_CRRA +
+                          Pop_Switch +
+                          Pop_CRRA + 
+                          Alloc_HR_Round2 +
+                          Alloc_HR_Round3 +
+                          Alloc_profile_AllRounds 
+                        
+                        , data = Survey_Dummy_Variables_Rowan_Simple_V1) 
 ```
+  
+```{r}
+summary(Linearmod_test_Round1)
+```
+   
+## Model Round 2)
+
+```{r}
+Linearmod_test_Round2 <- lm(formula = Alloc_HR_Round2 ~ 
+                          Age_grouped + 
+                          Geographic_group + 
+                          Duration + 
+                          Gender + 
+                          Employed_Dummy + 
+                          Student_Dummy + 
+                          Retired_Dummy + 
+                          University_Research_Dummy +
+                          Environmental_Protection_Agency_Dummy +
+                          Wildlife_Conservation_Dummy +
+                          Undergrad_Dummy + 
+                          Postgrad_Dummy +
+                          Work_Exp_Dummy +
+                          Study_Exp_Dummy +
+                          Volunteering_Exp_Dummy +
+                          Confidence_in_survey +
+                          Char_conservation_interest +
+                          # No_Papers_Dummy +  Removed as in total collinearity with Many papers dummy
+                          Some_Papers_Dummy +
+                          Many_Papers_Dummy +
+                          Scale_Sufficently_Protected_First +
+                          Scale_Sufficently_Protected_Second +
+                          Group +
+                          TrueFalseScore +
+                          Money_Switch +
+                          Money_CRRA +
+                          Pop_Switch +
+                          Pop_CRRA + 
+                          Alloc_HR_Round1 +
+                          Alloc_HR_Round3 +
+                          Alloc_profile_AllRounds 
+                        
+                        , data = Survey_Dummy_Variables_Rowan_Simple_V1) 
+```
+  
+```{r}
+summary(Linearmod_test_Round2)
+```
+
+## Model Round 3) 
+
+```{r}
+Linearmod_test_Round3 <- lm(formula = Alloc_HR_Round3 ~ 
+                          Age_grouped + 
+                          Geographic_group + 
+                          Duration + 
+                          Gender + 
+                          Employed_Dummy + 
+                          Student_Dummy + 
+                          Retired_Dummy + 
+                          University_Research_Dummy +
+                          Environmental_Protection_Agency_Dummy +
+                          Wildlife_Conservation_Dummy +
+                          Undergrad_Dummy + 
+                          Postgrad_Dummy +
+                          Work_Exp_Dummy +
+                          Study_Exp_Dummy +
+                          Volunteering_Exp_Dummy +
+                          Confidence_in_survey +
+                          Char_conservation_interest +
+                          # No_Papers_Dummy +  Removed as in total collinearity with Many papers dummy
+                          Some_Papers_Dummy +
+                          Many_Papers_Dummy +
+                          Scale_Sufficently_Protected_First +
+                          Scale_Sufficently_Protected_Second +
+                          Group +
+                          TrueFalseScore +
+                          Money_Switch +
+                          Money_CRRA +
+                          Pop_Switch +
+                          Pop_CRRA + 
+                          Alloc_HR_Round1 +
+                          Alloc_HR_Round2 +
+                          Alloc_profile_AllRounds 
+                        
+                        , data = Survey_Dummy_Variables_Rowan_Simple_V1) 
+```
+  
+```{r}
+summary(Linearmod_test_Round3)
+```
+
+## Model profile
+
+Based on profile like Up-Down, Down-Down etc 
+
+
+# 4) Various plots and statistics
+
+Let's start with simple stats about individual variables.
+Then we will look at how they interact with each other.
+
+Lists of stats I'd want to know / plot: 
+- Average, min, max duration. Plot frequency 
+- Sex ratio 
+- Employed vs Student vs Retired. Numbers simply.
+- University research % 
+- EPA %
+- IFI or other %
+- Undergrad, postgrad 
+- Conservation: Study / Work / Volunteering exp in %. 
+  How many cumulated the three?
+  How many cumulated work + study?
+- Confidence in survey: I want a frequency/barplot.
+- Char interest : I want a frequency/barplot.
+- Papers : Who, how many ! 
+- Sufficiently protected first and second: Compare means and variances.
+- Anticipation of info: Just %. 
+- Comfortable with experiment : Just % 
+- Taxonomy : Just %. 
+- TrueFalse Score : Average, min max. 
+
+
+
+Things I'd like to test : 
+- Do a model for duration to see if some were faster/slower. 
+- Do a model for confidence in survey to understand who didn't trust it. 
+- Do a model for char interest to see who love the char!
+- Do a model for Anticipation of info to see what profiles anticipated. 
+- Do a model for trueFalse Score to see who they are. 
+
+Also: 
+- Show Pop and Money switches and CRRA into a table like in papers. 
+- Find a way to plot the allocations in a nice way ! :) 
+
+## 
+
+
+
+
+
+
+
+
+
+
+
 
 This works
