@@ -14,6 +14,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(readxl)
 library(esquisse)
+library(nnet)
 ```
 
 This is empty but I needed a script to try the sharing process with Rowan.
@@ -68,7 +69,7 @@ Survey_Dummy_Variables_Rowan_V1_September2021 <- Survey_Dummy_Variables_Rowan_V1
 
 ```
 
-
+# Things to do 
 
 Threshold 10% of dataset to make a variable significant in the regression. 
 
@@ -97,7 +98,7 @@ After meeting :
 
 13) Check if the respondents who allocated more to HR in round 1 than in Round 2 (weird!) actually anticipated more than others that the LR pops could be unique too !
 
-
+14) Find ways to optimise the model !
 
 
 
@@ -187,7 +188,7 @@ Survey_Dummy_Variables_Rowan_V6 <- Survey_Dummy_Variables_Rowan_V5 %>%
   separate(., Current_position, into = c("Position1", "Position2", "Position3"), sep = ",") %>% 
   mutate(., University_Research_Dummy = if_else(condition = Position1 == "University (public) research" | Position2 == "University (public) research" | Position3 == "University (public) research", true = 1, false = 0, missing = 0)) %>%  
   mutate(., Environmental_Protection_Agency_Dummy = if_else(condition = Position1 == "Environmental protection agency" | Position2 == "Environmental protection agency" | Position3 == "Environmental protection agency", true = 1, false = 0, missing = 0)) %>%  
-  mutate(., Wildlife_Conservation_Dummy = if_else(condition = Position1 == "Wildlife conservation agency" | Position2 == "Wildlife conservation agency" | Position3 == "Wildlife conservation agency", true = 1, false = 0, missing = 0)) %>% 
+  mutate(., Wildlife_Conservation_Dummy = if_else(condition = Position1 == "Wildlife conservation/management agency" | Position2 == "Wildlife conservation/management agency" | Position3 == "Wildlife conservation/management agency", true = 1, false = 0, missing = 0)) %>% 
   # It did the job, let's filter out those useless columns: 
   select(., -c("Position1", "Position2","Position3"))
   
@@ -420,14 +421,33 @@ mean(Allocation_budgets2$Budget_alloc_LR, na.rm = T)
 mean(Allocation_budgets3$Budget_alloc_HR, na.rm = T)
 mean(Allocation_budgets3$Budget_alloc_LR, na.rm = T)
 ```
+## J) Sort the "did you feel comfortable" variable 
 
+When the people didn't check Yes or No and commented I assumed that it was a "YES".
 
-## J) Simple version 
+```{r}
+Survey_Dummy_Variables_Rowan_V13 <- Survey_Dummy_Variables_Rowan_V12 %>% 
+  rename(., "Comfortable_with_Exp" = `Did_you_feel_comfortable_with_the_budget_allocation_experiment?_-_Selected_Choice`) %>% 
+  mutate(., Comfortable_with_Exp = ifelse(Comfortable_with_Exp == "No", "No", ifelse(Comfortable_with_Exp == "Yes", "Yes", ifelse(Comfortable_with_Exp == "No,Would you like to comment it so we can improve it ?", "No", ifelse(Comfortable_with_Exp == "Yes,Would you like to comment it so we can improve it ?", "Yes",  ifelse(is.na(Comfortable_with_Exp), NA, "Yes")))) )) 
+```
+
+## K) Sort the Duration variable
+
+```{r}
+Survey_Dummy_Variables_Rowan_V14 <- Survey_Dummy_Variables_Rowan_V13 %>% 
+  mutate(., Duration_in_minutes = Duration/60)
+```
+
+## L) Simple version 
 
 Make a Simple version of the table
 ```{r}
-Survey_Dummy_Variables_Rowan_Simple_V1 <- Survey_Dummy_Variables_Rowan_V12 %>% 
-  select(., - c(Year_of_birth, Age, Employment_status, Highest_education_level, Conservation_experience, Useless, True_false_question, Publications_read, Risk_lottery_money_99, Risk_lottery_money_90, Risk_lottery_money_80, Risk_lottery_money_70, Risk_lottery_money_60, Risk_lottery_money_50, Risk_lottery_money_40, Risk_lottery_money_30, Risk_lottery_money_20, Risk_lottery_money_10, Risk_lottery_populations_99, Risk_lottery_populations_90, Risk_lottery_populations_80, Risk_lottery_populations_70, Risk_lottery_populations_60, Risk_lottery_populations_50, Risk_lottery_populations_40, Risk_lottery_populations_30, Risk_lottery_populations_20, Risk_lottery_populations_10, Q1_Risk_Rating, Q2_Risk_Rating, Q3_Risk_Rating, Q4_Risk_Rating, Q5_Risk_Rating, Q6_Risk_Rating, Q7_Risk_Rating, Q8_Risk_Rating, Q9_Risk_Rating, Q10_Risk_Rating, Q1_Conservation_Risk_Rating_, Q2_Conservation_Risk_Rating_, Q3_Conservation_Risk_Rating_, Q4_Conservation_Risk_Rating_, Q5_Conservation_Risk_Rating_, Q6_Conservation_Risk_Rating_, Q7_Conservation_Risk_Rating_, Q8_Conservation_Risk_Rating_, Q9_Conservation_Risk_Rating_, Q10_Conservation_Risk_Rating_, Risk_Reduction_LR_14_percent, Risk_Reduction_LR_20_percent, Risk_Reduction_HR_70_percent, Risk_Reduction_HR_50_percent, Risk_Reduction_LR_40_percent_Round_2, Risk_Reduction_HR_80_percent_Round_2, Risk_Reduction_LR_40_percent_Round_3, Risk_Reduction_HR_80_percent_Round_3))
+Survey_Dummy_Variables_Rowan_Simple_V1 <- Survey_Dummy_Variables_Rowan_V14 %>% 
+  select(., - c(Year_of_birth, Age, Employment_status, Highest_education_level, Conservation_experience, Useless, True_false_question, Publications_read, Risk_lottery_money_99, Risk_lottery_money_90, Risk_lottery_money_80, Risk_lottery_money_70, Risk_lottery_money_60, Risk_lottery_money_50, Risk_lottery_money_40, Risk_lottery_money_30, Risk_lottery_money_20, Risk_lottery_money_10, Risk_lottery_populations_99, Risk_lottery_populations_90, Risk_lottery_populations_80, Risk_lottery_populations_70, Risk_lottery_populations_60, Risk_lottery_populations_50, Risk_lottery_populations_40, Risk_lottery_populations_30, Risk_lottery_populations_20, Risk_lottery_populations_10, Q1_Risk_Rating, Q2_Risk_Rating, Q3_Risk_Rating, Q4_Risk_Rating, Q5_Risk_Rating, Q6_Risk_Rating, Q7_Risk_Rating, Q8_Risk_Rating, Q9_Risk_Rating, Q10_Risk_Rating, Q1_Conservation_Risk_Rating_, Q2_Conservation_Risk_Rating_, Q3_Conservation_Risk_Rating_, Q4_Conservation_Risk_Rating_, Q5_Conservation_Risk_Rating_, Q6_Conservation_Risk_Rating_, Q7_Conservation_Risk_Rating_, Q8_Conservation_Risk_Rating_, Q9_Conservation_Risk_Rating_, Q10_Conservation_Risk_Rating_, Risk_Reduction_LR_14_percent, Risk_Reduction_LR_20_percent, Risk_Reduction_HR_70_percent, Risk_Reduction_HR_50_percent, Risk_Reduction_LR_40_percent_Round_2, Risk_Reduction_HR_80_percent_Round_2, Risk_Reduction_LR_40_percent_Round_3, Risk_Reduction_HR_80_percent_Round_3))  %>% 
+  
+  # FILTER OUT MORE NA'S TO SOLVE THE MISSING DATA PROBLEM
+filter(., !is.na(Alloc_diff_Round2to3))
+  
 
 Survey_Dummy_Variables_Rowan_Simple_V1$Work_Exp_Dummy <- as.numeric(Survey_Dummy_Variables_Rowan_Simple_V1$Work_Exp_Dummy)
 Survey_Dummy_Variables_Rowan_Simple_V1$Study_Exp_Dummy <- as.numeric(Survey_Dummy_Variables_Rowan_Simple_V1$Study_Exp_Dummy)
@@ -440,15 +460,11 @@ Survey_Dummy_Variables_Rowan_Simple_V1$Alloc_HR_Round1 <- as.numeric(Survey_Dumm
 Survey_Dummy_Variables_Rowan_Simple_V1$Money_Switch <- as.numeric(Survey_Dummy_Variables_Rowan_Simple_V1$Money_Switch)
 Survey_Dummy_Variables_Rowan_Simple_V1$Pop_Switch <- as.numeric(Survey_Dummy_Variables_Rowan_Simple_V1$Pop_Switch)
 Survey_Dummy_Variables_Rowan_Simple_V1$Pop_CRRA <- as.numeric(Survey_Dummy_Variables_Rowan_Simple_V1$Pop_CRRA)
+Survey_Dummy_Variables_Rowan_Simple_V1$Alloc_diff_Round2to3 <- as.numeric(Survey_Dummy_Variables_Rowan_Simple_V1$Alloc_diff_Round2to3)
 ```
 
 ```{r}
 # summary(Survey_Dummy_Variables_Rowan_Simple_V1)
-```
-
-## K)
-```{r}
-
 ```
 
 # 2) Some plotting: 
@@ -460,15 +476,62 @@ Survey_Dummy_Variables_Rowan_Simple_V1$Pop_CRRA <- as.numeric(Survey_Dummy_Varia
 
 # 3) Now the model
 
+
+## Preamble - How to interpret a model
+
+1) Look at the Residuals
+
+The next item in the model output talks about the residuals. Residuals are essentially the difference between the actual observed response values (distance to stop dist in our case) and the response values that the model predicted. The Residuals section of the model output breaks it down into 5 summary points. When assessing how well the model fit the data, you should look for a symmetrical distribution across these points on the mean value zero (0). In our example, we can see that the distribution of the residuals do not appear to be strongly symmetrical. That means that the model predicts certain points that fall far away from the actual observed points. We could take this further consider plotting the residuals to see whether this normally distributed, etc. but will skip this for this example.
+
+2) Coefficients
+
+The next section in the model output talks about the coefficients of the model. Theoretically, in simple linear regression, the coefficients are two unknown constants that represent the intercept and slope terms in the linear model. If we wanted to predict the Distance required for a car to stop given its speed, we would get a training set and produce estimates of the coefficients to then use it in the model formula. Ultimately, the analyst wants to find an intercept and a slope such that the resulting fitted line is as close as possible to the 50 data points in our data set.
+
+Coefficient - Estimate
+
+The coefficient Estimate contains two rows; the first one is the intercept. The intercept, in our example, is essentially the expected value of the distance required for a car to stop when we consider the average speed of all cars in the dataset. In other words, it takes an average car in our dataset 42.98 feet to come to a stop. The second row in the Coefficients is the slope, or in our example, the effect speed has in distance required for a car to stop. The slope term in our model is saying that for every 1 mph increase in the speed of a car, the required distance to stop goes up by 3.9324088 feet.
+
+Coefficient - Standard Error
+
+The coefficient Standard Error measures the average amount that the coefficient estimates vary from the actual average value of our response variable. We’d ideally want a lower number relative to its coefficients. In our example, we’ve previously determined that for every 1 mph increase in the speed of a car, the required distance to stop goes up by 3.9324088 feet. The Standard Error can be used to compute an estimate of the expected difference in case we ran the model again and again. In other words, we can say that the required distance for a car to stop can vary by 0.4155128 feet. The Standard Errors can also be used to compute confidence intervals and to statistically test the hypothesis of the existence of a relationship between speed and distance required to stop.
+
+Coefficient - t value
+
+The coefficient t-value is a measure of how many standard deviations our coefficient estimate is far away from 0. We want it to be far away from zero as this would indicate we could reject the null hypothesis - that is, we could declare a relationship between speed and distance exist. In our example, the t-statistic values are relatively far away from zero and are large relative to the standard error, which could indicate a relationship exists. In general, t-values are also used to compute p-values.
+
+Coefficient - Pr(>t)
+
+The Pr(>t) acronym found in the model output relates to the probability of observing any value equal or larger than t. A small p-value indicates that it is unlikely we will observe a relationship between the predictor (speed) and response (dist) variables due to chance. Typically, a p-value of 5% or less is a good cut-off point. In our model example, the p-values are very close to zero. Note the ‘signif. Codes’ associated to each estimate. Three stars (or asterisks) represent a highly significant p-value. Consequently, a small p-value for the intercept and the slope indicates that we can reject the null hypothesis which allows us to conclude that there is a relationship between speed and distance.
+
+Residual Standard Error
+
+Residual Standard Error is measure of the quality of a linear regression fit. Theoretically, every linear model is assumed to contain an error term E. Due to the presence of this error term, we are not capable of perfectly predicting our response variable (dist) from the predictor (speed) one. The Residual Standard Error is the average amount that the response (dist) will deviate from the true regression line. In our example, the actual distance required to stop can deviate from the true regression line by approximately 15.3795867 feet, on average. In other words, given that the mean distance for all cars to stop is 42.98 and that the Residual Standard Error is 15.3795867, we can say that the percentage error is (any prediction would still be off by) 35.78%. It’s also worth noting that the Residual Standard Error was calculated with 48 degrees of freedom. Simplistically, degrees of freedom are the number of data points that went into the estimation of the parameters used after taking into account these parameters (restriction). In our case, we had 50 data points and two parameters (intercept and slope).
+
+Multiple R-squared, Adjusted R-squared
+
+The R-squared (R2
+) statistic provides a measure of how well the model is fitting the actual data. It takes the form of a proportion of variance. R2 is a measure of the linear relationship between our predictor variable (speed) and our response / target variable (dist). It always lies between 0 and 1 (i.e.: a number near 0 represents a regression that does not explain the variance in the response variable well and a number close to 1 does explain the observed variance in the response variable). In our example, the R2 we get is 0.6510794. Or roughly 65% of the variance found in the response variable (dist) can be explained by the predictor variable (speed). Step back and think: If you were able to choose any metric to predict distance required for a car to stop, would speed be one and would it be an important one that could help explain how distance would vary based on speed? I guess it’s easy to see that the answer would almost certainly be a yes. That why we get a relatively strong R2. Nevertheless, it’s hard to define what level of R2
+
+is appropriate to claim the model fits well. Essentially, it will vary with the application and the domain studied.
+
+A side note: In multiple regression settings, the R2
+will always increase as more variables are included in the model. That’s why the adjusted R2
+
+is the preferred measure as it adjusts for the number of variables considered.
+
+F-Statistic
+
+F-statistic is a good indicator of whether there is a relationship between our predictor and the response variables. The further the F-statistic is from 1 the better it is. However, how much larger the F-statistic needs to be depends on both the number of data points and the number of predictors. Generally, when the number of data points is large, an F-statistic that is only a little bit larger than 1 is already sufficient to reject the null hypothesis (H0 : There is no relationship between speed and distance). The reverse is true as if the number of data points is small, a large F-statistic is required to be able to ascertain that there may be a relationship between predictor and response variables. In our example the F-statistic is 89.5671065 which is relatively larger than 1 given the size of our data.
+
+
+
+
 In the regression we include : 
 
 Gender, Birth, Country, Employment (Use employment VS study, use the dummy variables), Current position (University_DV + EPA_DV + Wildlife_DV), Highest education (Use only the dummies "Undergradute" and "Postgraduate"), Conservation experience (Use all the three as dummy variables), Confidence in Survey (once "I don't know" values are sorted), Char conservation interest, True or false score, Publications read (Use the three dummies), . 
 
-```{r}
 
-```
-
-## Model Round 1) 
+## I) Model Round 1) 
 
 These budget allocation models will use the allocation amount to HR populations as a response variable, 
 and all the remaining variables as explanatory.
@@ -575,7 +638,7 @@ Linearmod_test_Round1 <- lm(formula = Alloc_HR_Round1 ~
 summary(Linearmod_test_Round1)
 ```
    
-## Model Round 2)
+## II) Model Round 2)
 
 ```{r}
 Linearmod_test_Round2 <- lm(formula = Alloc_HR_Round2 ~ 
@@ -618,7 +681,7 @@ Linearmod_test_Round2 <- lm(formula = Alloc_HR_Round2 ~
 summary(Linearmod_test_Round2)
 ```
 
-## Model Round 3) 
+## III) Model Round 3) 
 
 ```{r}
 Linearmod_test_Round3 <- lm(formula = Alloc_HR_Round3 ~ 
@@ -661,10 +724,147 @@ Linearmod_test_Round3 <- lm(formula = Alloc_HR_Round3 ~
 summary(Linearmod_test_Round3)
 ```
 
-## Model profile
+## IV) Multinomial logistic reg: Model on profile
 
-Based on profile like Up-Down, Down-Down etc 
+Based on profile like Up-Down, Down-Down etc.
+Since the response variable is categorical we need a multinomial logistic regression.
 
+https://datasciencebeginners.com/2018/12/20/multinomial-logistic-regression-using-r/
+
+```{r}
+# Setting the basline 
+Survey_Dummy_Variables_Rowan_Simple_V1$Alloc_profile_AllRounds <- relevel(as.factor(Survey_Dummy_Variables_Rowan_Simple_V1$Alloc_profile_AllRounds), ref = "Same-Same")
+
+Linearmod_test_Profile <- multinom(formula = Alloc_profile_AllRounds ~ 
+                          Age_grouped + 
+                          Geographic_group + 
+                          Duration + 
+                          Gender + 
+                          Employed_Dummy + 
+                          Student_Dummy + 
+                          Retired_Dummy + 
+                          University_Research_Dummy +
+                          Environmental_Protection_Agency_Dummy +
+                          Wildlife_Conservation_Dummy +
+                          Undergrad_Dummy + 
+                          Postgrad_Dummy +
+                          Work_Exp_Dummy +
+                          Study_Exp_Dummy +
+                          Volunteering_Exp_Dummy +
+                          Confidence_in_survey +
+                          Char_conservation_interest +
+                          # No_Papers_Dummy +  Removed as in total collinearity with Many papers dummy
+                          Some_Papers_Dummy +
+                          Many_Papers_Dummy +
+                          Scale_Sufficently_Protected_First +
+                          Scale_Sufficently_Protected_Second +
+                          Group +
+                          TrueFalseScore +
+                          Money_Switch +
+                          Money_CRRA +
+                          Pop_Switch +
+                          Pop_CRRA + 
+                          Alloc_HR_Round1 +
+                          Alloc_HR_Round2 +
+                          Alloc_HR_Round3 
+                        
+                        , data = Survey_Dummy_Variables_Rowan_Simple_V1) 
+```
+
+# NO CLUE OF HOW TO INTERPRET THIS
+```{r}
+summary(Linearmod_test_Profile)
+```
+## V) Model Diff Round 1 to 2 
+
+Now the goal is to make a model that predicts the difference of allocation between Round 1 and Round 2. 
+This should be interesting. 
+Then we will do the same with Round 2 to 3. 
+I think that a linear regression will do the job! 
+
+```{r}
+Linearmod_Diff_Round1to2 <- lm(formula = Alloc_diff_Round1to2 ~ 
+                          Age_grouped + 
+                          Geographic_group + 
+                          Duration + 
+                          Gender + 
+                          Employed_Dummy + 
+                          Student_Dummy + 
+                          Retired_Dummy + 
+                          University_Research_Dummy +
+                          Environmental_Protection_Agency_Dummy +
+                          Wildlife_Conservation_Dummy +
+                          Undergrad_Dummy + 
+                          Postgrad_Dummy +
+                          Work_Exp_Dummy +
+                          Study_Exp_Dummy +
+                          Volunteering_Exp_Dummy +
+                          Confidence_in_survey +
+                          Char_conservation_interest +
+                          # No_Papers_Dummy +  Removed as in total collinearity with Many papers dummy
+                          Some_Papers_Dummy +
+                          Many_Papers_Dummy +
+                          Scale_Sufficently_Protected_First +
+                          Scale_Sufficently_Protected_Second +
+                          Group +
+                          TrueFalseScore +
+                          Money_Switch +
+                          Money_CRRA +
+                          Pop_Switch +
+                          Pop_CRRA + 
+                          Alloc_HR_Round3 +
+                          Alloc_profile_AllRounds 
+                        
+                        , data = Survey_Dummy_Variables_Rowan_Simple_V1) 
+```
+  
+```{r}
+summary(Linearmod_Diff_Round1to2)
+```
+
+## VI) Model Diff Round 2 to 3
+
+We do the same with Round 2 to 3. 
+
+```{r}
+Linearmod_Diff_Round2to3 <- lm(formula = Alloc_diff_Round2to3 ~ 
+                          Age_grouped + 
+                          Geographic_group + 
+                          Duration + 
+                          Gender + 
+                          Employed_Dummy + 
+                          Student_Dummy + 
+                          Retired_Dummy + 
+                          University_Research_Dummy +
+                          Environmental_Protection_Agency_Dummy +
+                          Wildlife_Conservation_Dummy +
+                          Undergrad_Dummy + 
+                          Postgrad_Dummy +
+                          Work_Exp_Dummy +
+                          Study_Exp_Dummy +
+                          Volunteering_Exp_Dummy +
+                          Confidence_in_survey +
+                          Char_conservation_interest +
+                          # No_Papers_Dummy +  Removed as in total collinearity with Many papers dummy
+                          Some_Papers_Dummy +
+                          Many_Papers_Dummy +
+                          Scale_Sufficently_Protected_First +
+                          Scale_Sufficently_Protected_Second +
+                          Group +
+                          TrueFalseScore +
+                          Money_Switch +
+                          Money_CRRA +
+                          Pop_Switch +
+                          Pop_CRRA + 
+                          Alloc_HR_Round1 +
+                          Alloc_profile_AllRounds 
+                        
+                        , data = as.data.frame(Survey_Dummy_Variables_Rowan_Simple_V1)) 
+```
+  
+```{r}
+summary(Linearmod_Diff_Round2to3)
+```
 
 # 4) Various plots and statistics
 
@@ -686,12 +886,11 @@ Lists of stats I'd want to know / plot:
 - Char interest : I want a frequency/barplot.
 - Papers : Who, how many ! 
 - Sufficiently protected first and second: Compare means and variances.
+  Maybe a plot with the two distributions.
 - Anticipation of info: Just %. 
 - Comfortable with experiment : Just % 
 - Taxonomy : Just %. 
 - TrueFalse Score : Average, min max. 
-
-
 
 Things I'd like to test : 
 - Do a model for duration to see if some were faster/slower. 
@@ -704,7 +903,339 @@ Also:
 - Show Pop and Money switches and CRRA into a table like in papers. 
 - Find a way to plot the allocations in a nice way ! :) 
 
-## 
+## I) Statistics 
+
+### a) Duration 
+
+Average, min, max duration. Plot frequency 
+```{r}
+summary(Survey_Dummy_Variables_Rowan_Simple_V1$Duration)
+
+Duration_in_minutes <- Survey_Dummy_Variables_Rowan_Simple_V1$Duration/60
+summary(Duration_in_minutes)
+```
+Fuck one guy probably left the tab open and never closes her/his computer haha
+
+```{r}
+library(dplyr)
+library(ggplot2)
+
+
+Survey_Dummy_Variables_Rowan_Simple_V1 %>%
+ filter(Duration_in_minutes >= 4 & Duration_in_minutes <= 100) %>%
+ ggplot() +
+ aes(x = Duration_in_minutes) +
+ geom_histogram(bins = 30L, fill = "#2A4A82") +
+ labs(x = "Time for completion of survey (mn)", y = "Count", title = "Distribution of completion times for the online survey", 
+ subtitle = "Outlier values (i.e > 100mn) were excluded (Open tabs)") +
+ theme_minimal()
+```
+### b) Sex ratio
+
+```{r}
+table(Survey_Dummy_Variables_Rowan_Simple_V1$Gender)
+
+library(ggplot2)
+
+ggplot(Survey_Dummy_Variables_Rowan_Simple_V1) +
+ aes(x = Geographic_group, fill = Gender) +
+ geom_bar() +
+ scale_fill_hue(direction = 1) +
+ theme_minimal()
+```
+### c) Employed vs Student vs Retired. 
+
+Numbers simply.
+```{r}
+# Percentage of Employed people: 
+(sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Employed_Dummy==1)) / nrow(Survey_Dummy_Variables_Rowan_Simple_V1) *100)
+
+# Percentage of Student people: 
+(sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Student_Dummy==1)) / nrow(Survey_Dummy_Variables_Rowan_Simple_V1) *100)
+
+# Percentage of Retired people: 
+(sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Retired_Dummy==1)) / nrow(Survey_Dummy_Variables_Rowan_Simple_V1) *100)
+```
+### d) Position 
+
+##### - General sample
+```{r}
+# Percentage of Public research people: 
+(sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, University_Research_Dummy==1)) / nrow(Survey_Dummy_Variables_Rowan_Simple_V1) *100)
+
+# Percentage of EPA people: 
+(sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Environmental_Protection_Agency_Dummy ==1)) / nrow(Survey_Dummy_Variables_Rowan_Simple_V1) *100)
+
+# Percentage of IFI and co people: 
+(sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Wildlife_Conservation_Dummy ==1)) / nrow(Survey_Dummy_Variables_Rowan_Simple_V1) *100)
+```
+##### - North America sample
+```{r}
+# Percentage of Public research people: 
+(sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, University_Research_Dummy==1 & Geographic_group == "North_America")) / sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Geographic_group == "North_America")) *100)
+
+# Percentage of EPA people: 
+(sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Environmental_Protection_Agency_Dummy==1 & Geographic_group == "North_America")) / sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Geographic_group == "North_America")) *100)
+
+# Percentage of IFI and co people: 
+(sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Wildlife_Conservation_Dummy==1 & Geographic_group == "North_America")) / sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Geographic_group == "North_America")) *100)
+
+```
+
+##### - Atlantic islands sample
+```{r}
+# Percentage of Public research people: 
+(sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, University_Research_Dummy==1 & Geographic_group == "North_Atlantic_Isles")) / sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Geographic_group == "North_Atlantic_Isles")) *100)
+
+# Percentage of EPA people: 
+(sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Environmental_Protection_Agency_Dummy==1 & Geographic_group == "North_Atlantic_Isles")) / sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Geographic_group == "North_Atlantic_Isles")) *100)
+
+# Percentage of IFI and co people: 
+(sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Wildlife_Conservation_Dummy==1 & Geographic_group == "North_Atlantic_Isles")) / sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Geographic_group == "North_Atlantic_Isles")) *100)
+```
+
+##### - Other European countries sample
+```{r}
+# Percentage of Public research people: 
+(sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, University_Research_Dummy==1 & Geographic_group == "Other_Europe")) / sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Geographic_group == "Other_Europe")) *100)
+
+# Percentage of EPA people: 
+(sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Environmental_Protection_Agency_Dummy==1 & Geographic_group == "Other_Europe")) / sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Geographic_group == "Other_Europe")) *100)
+
+# Percentage of IFI and co people: 
+(sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Wildlife_Conservation_Dummy==1 & Geographic_group == "Other_Europe")) / sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Geographic_group == "Other_Europe")) *100)
+
+```
+
+
+- Undergrad, postgrad 
+- Conservation: Study / Work / Volunteering exp in %. 
+  How many cumulated the three?
+  How many cumulated work + study?
+- Confidence in survey: I want a frequency/barplot.
+- Char interest : I want a frequency/barplot.
+- Papers : Who, how many ! 
+- Sufficiently protected first and second: Compare means and variances.
+  Maybe a plot with the two distributions.
+- Anticipation of info: Just %. 
+- Comfortable with experiment : Just % 
+- Taxonomy : Just %. 
+- TrueFalse Score : Average, min max. 
+
+## Sufficiently protected
+
+- Sufficiently protected first and second: Compare means and variances.
+  Maybe a plot with the two distributions.
+  
+  The statement is "Arctic char populations in Ireland are sufficiently protected by general regulations on water quality so it is unnecessary to allocate more ressources to their conservation." 
+```{r}
+# Now a nice density plot
+Sufficiently_protected_data_first <- Survey_Dummy_Variables_Rowan_Simple_V1 %>% 
+  select(., Scale_Sufficently_Protected_First, name) %>% 
+  rename("Scale_Sufficently_Protected" = Scale_Sufficently_Protected_First) %>% 
+  mutate(., Time_asked = "First")
+Sufficiently_protected_data_second <- Survey_Dummy_Variables_Rowan_Simple_V1 %>% 
+  select(., Scale_Sufficently_Protected_Second, name) %>% 
+  rename("Scale_Sufficently_Protected" = Scale_Sufficently_Protected_Second) %>% 
+  mutate(., Time_asked = "Second")
+
+Sufficiently_protected_data <- rbind(Sufficiently_protected_data_first, Sufficiently_protected_data_second)
+
+ggplot(Sufficiently_protected_data, aes(x = Scale_Sufficently_Protected, fill = Time_asked)) + geom_density(alpha = 0.5) +
+ labs(x = "Disagreement scale with suggestion that char are sufficiently protected in Ireland") +
+ theme_minimal()
+```
+
+```{r}
+t.test(Survey_Dummy_Variables_Rowan_Simple_V1$Scale_Sufficently_Protected_First, Survey_Dummy_Variables_Rowan_Simple_V1$Scale_Sufficently_Protected_Second, alternative = "less" )
+```
+Try it on different subsets.
+```{r}
+Susbet_Students <- Survey_Dummy_Variables_Rowan_Simple_V1 %>% 
+    filter(., Student_Dummy == 1)
+
+t.test(Susbet_Students$Scale_Sufficently_Protected_First, Susbet_Students$Scale_Sufficently_Protected_Second, alternative = "less" )
+```
+## II) Extra models 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## END
 
 
 
