@@ -443,7 +443,7 @@ Survey_Dummy_Variables_Rowan_V14 <- Survey_Dummy_Variables_Rowan_V13 %>%
 Make a Simple version of the table
 ```{r}
 Survey_Dummy_Variables_Rowan_Simple_V1 <- Survey_Dummy_Variables_Rowan_V14 %>% 
-  select(., - c(Year_of_birth, Age, Employment_status, Highest_education_level, Conservation_experience, Useless, True_false_question, Publications_read, Risk_lottery_money_99, Risk_lottery_money_90, Risk_lottery_money_80, Risk_lottery_money_70, Risk_lottery_money_60, Risk_lottery_money_50, Risk_lottery_money_40, Risk_lottery_money_30, Risk_lottery_money_20, Risk_lottery_money_10, Risk_lottery_populations_99, Risk_lottery_populations_90, Risk_lottery_populations_80, Risk_lottery_populations_70, Risk_lottery_populations_60, Risk_lottery_populations_50, Risk_lottery_populations_40, Risk_lottery_populations_30, Risk_lottery_populations_20, Risk_lottery_populations_10, Q1_Risk_Rating, Q2_Risk_Rating, Q3_Risk_Rating, Q4_Risk_Rating, Q5_Risk_Rating, Q6_Risk_Rating, Q7_Risk_Rating, Q8_Risk_Rating, Q9_Risk_Rating, Q10_Risk_Rating, Q1_Conservation_Risk_Rating_, Q2_Conservation_Risk_Rating_, Q3_Conservation_Risk_Rating_, Q4_Conservation_Risk_Rating_, Q5_Conservation_Risk_Rating_, Q6_Conservation_Risk_Rating_, Q7_Conservation_Risk_Rating_, Q8_Conservation_Risk_Rating_, Q9_Conservation_Risk_Rating_, Q10_Conservation_Risk_Rating_, Risk_Reduction_LR_14_percent, Risk_Reduction_LR_20_percent, Risk_Reduction_HR_70_percent, Risk_Reduction_HR_50_percent, Risk_Reduction_LR_40_percent_Round_2, Risk_Reduction_HR_80_percent_Round_2, Risk_Reduction_LR_40_percent_Round_3, Risk_Reduction_HR_80_percent_Round_3))  %>% 
+  select(., - c(Year_of_birth, Age, Employment_status, Highest_education_level, Conservation_experience, Useless, True_false_question, Risk_lottery_money_99, Risk_lottery_money_90, Risk_lottery_money_80, Risk_lottery_money_70, Risk_lottery_money_60, Risk_lottery_money_50, Risk_lottery_money_40, Risk_lottery_money_30, Risk_lottery_money_20, Risk_lottery_money_10, Risk_lottery_populations_99, Risk_lottery_populations_90, Risk_lottery_populations_80, Risk_lottery_populations_70, Risk_lottery_populations_60, Risk_lottery_populations_50, Risk_lottery_populations_40, Risk_lottery_populations_30, Risk_lottery_populations_20, Risk_lottery_populations_10, Q1_Risk_Rating, Q2_Risk_Rating, Q3_Risk_Rating, Q4_Risk_Rating, Q5_Risk_Rating, Q6_Risk_Rating, Q7_Risk_Rating, Q8_Risk_Rating, Q9_Risk_Rating, Q10_Risk_Rating, Q1_Conservation_Risk_Rating_, Q2_Conservation_Risk_Rating_, Q3_Conservation_Risk_Rating_, Q4_Conservation_Risk_Rating_, Q5_Conservation_Risk_Rating_, Q6_Conservation_Risk_Rating_, Q7_Conservation_Risk_Rating_, Q8_Conservation_Risk_Rating_, Q9_Conservation_Risk_Rating_, Q10_Conservation_Risk_Rating_, Risk_Reduction_LR_14_percent, Risk_Reduction_LR_20_percent, Risk_Reduction_HR_70_percent, Risk_Reduction_HR_50_percent, Risk_Reduction_LR_40_percent_Round_2, Risk_Reduction_HR_80_percent_Round_2, Risk_Reduction_LR_40_percent_Round_3, Risk_Reduction_HR_80_percent_Round_3))  %>% 
   
   # FILTER OUT MORE NA'S TO SOLVE THE MISSING DATA PROBLEM
 filter(., !is.na(Alloc_diff_Round2to3))
@@ -1006,15 +1006,204 @@ Numbers simply.
 (sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Wildlife_Conservation_Dummy==1 & Geographic_group == "Other_Europe")) / sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Geographic_group == "Other_Europe")) *100)
 
 ```
+### e) Education 
 
+##### - General sample
+```{r}
+# Percentage of Undergrad people: 
+(sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Undergrad_Dummy ==1)) / nrow(Survey_Dummy_Variables_Rowan_Simple_V1) * 100)
 
-- Undergrad, postgrad 
-- Conservation: Study / Work / Volunteering exp in %. 
+# Percentage of Postgrad people: 
+(sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Postgrad_Dummy ==1)) / nrow(Survey_Dummy_Variables_Rowan_Simple_V1) *100)
+```
+
+##### - North America sample
+
+```{r}
+# Percentage of Undergrad people: 
+(sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Undergrad_Dummy ==1 & Geographic_group == "North_America")) / sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Geographic_group == "North_America")) * 100)
+
+# Percentage of Postgrad people: 
+(sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Postgrad_Dummy ==1 & Geographic_group == "North_America")) / sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Geographic_group == "North_America")) * 100)
+```
+
+##### - Atlantic islands sample
+
+```{r}
+# Percentage of Undergrad people: 
+(sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Undergrad_Dummy ==1 & Geographic_group == "North_Atlantic_Isles")) / sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Geographic_group == "North_Atlantic_Isles")) * 100)
+
+# Percentage of Postgrad people: 
+(sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Postgrad_Dummy ==1 & Geographic_group == "North_Atlantic_Isles")) / sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Geographic_group == "North_Atlantic_Isles")) * 100)
+```
+
+##### - Other European countries sample
+
+```{r}
+# Percentage of Undergrad people: 
+(sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Undergrad_Dummy ==1 & Geographic_group == "Other_Europe")) / sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Geographic_group == "Other_Europe")) * 100)
+
+# Percentage of Postgrad people: 
+(sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Postgrad_Dummy ==1 & Geographic_group == "Other_Europe")) / sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Geographic_group == "Other_Europe")) * 100)
+```
+### f) Conservation experience 
+
+##### - General sample
+```{r}
+# Percentage of Volunteering people: 
+(sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Volunteering_Exp_Dummy ==1)) / nrow(Survey_Dummy_Variables_Rowan_Simple_V1) * 100)
+
+# Percentage of people who studied in conservation: 
+(sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Study_Exp_Dummy ==1)) / nrow(Survey_Dummy_Variables_Rowan_Simple_V1) *100)
+
+# Percentage of of people who worked in conservation: 
+(sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Study_Exp_Dummy ==1)) / nrow(Survey_Dummy_Variables_Rowan_Simple_V1) *100)
+```
+
+##### - North America sample
+
+```{r}
+# Percentage of Volunteering people: 
+(sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Volunteering_Exp_Dummy ==1 & Geographic_group == "North_America")) / sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Geographic_group == "North_America")) * 100)
+
+# Percentage of of people who studied in conservation: 
+(sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Study_Exp_Dummy ==1 & Geographic_group == "North_America")) / sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Geographic_group == "North_America")) * 100)
+
+# Percentage of of people who worked in conservation: 
+(sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Work_Exp_Dummy ==1 & Geographic_group == "North_America")) / sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Geographic_group == "North_America")) * 100)
+```
+
+##### - Atlantic islands sample
+
+```{r}
+# Percentage of Volunteering people: 
+(sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Volunteering_Exp_Dummy ==1 & Geographic_group == "North_Atlantic_Isles")) / sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Geographic_group == "North_Atlantic_Isles")) * 100)
+
+# Percentage of of people who studied in conservation: 
+(sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Study_Exp_Dummy ==1 & Geographic_group == "North_Atlantic_Isles")) / sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Geographic_group == "North_Atlantic_Isles")) * 100)
+
+# Percentage of of people who worked in conservation: 
+(sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Work_Exp_Dummy ==1 & Geographic_group == "North_Atlantic_Isles")) / sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Geographic_group == "North_Atlantic_Isles")) * 100)
+```
+
+##### - Other European countries sample
+
+```{r}
+# Percentage of Volunteering people: 
+(sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Volunteering_Exp_Dummy ==1 & Geographic_group == "Other_Europe")) / sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Geographic_group == "Other_Europe")) * 100)
+
+# Percentage of of people who studied in conservation: 
+(sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Study_Exp_Dummy ==1 & Geographic_group == "Other_Europe")) / sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Geographic_group == "Other_Europe")) * 100)
+
+# Percentage of of people who worked in conservation: 
+(sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Work_Exp_Dummy ==1 & Geographic_group == "Other_Europe")) / sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Geographic_group == "Other_Europe")) * 100)
+```
   How many cumulated the three?
-  How many cumulated work + study?
-- Confidence in survey: I want a frequency/barplot.
+  
+### g) Confidence in survey
+
+```{r}
+esquisser(Survey_Dummy_Variables_Rowan_Simple_V1)
+
+ggplot(Survey_Dummy_Variables_Rowan_Simple_V1) +
+ aes(x = Confidence_in_survey) +
+ geom_density(adjust = 1L, 
+ fill = "#112446") +
+ labs(x = "Confidence of respondent in the survey", y = "Counts") +
+ theme_minimal() +
+ facet_wrap(vars(Publications_read))
+```
+
+The above is quite interesting. The plots are not in the right order but if you look at them in order you 
+see that the more papers people have read about it, the more they agree with each other. 
+
+Now let's see what average they have each: 
+
+#### - General sample
+
+```{r}
+summary(Survey_Dummy_Variables_Rowan_Simple_V1$Confidence_in_survey)
+```
+##### - North America sample
+
+```{r}
+summary(subset(x = Survey_Dummy_Variables_Rowan_Simple_V1, select = Confidence_in_survey, subset = Geographic_group == "North_America"))
+```
+
+##### - Atlantic islands sample
+
+```{r}
+summary(subset(x = Survey_Dummy_Variables_Rowan_Simple_V1, select = Confidence_in_survey, subset = Geographic_group == "North_Atlantic_Isles"))
+```
+
+##### - Other European countries sample
+
+```{r}
+summary(subset(x = Survey_Dummy_Variables_Rowan_Simple_V1, select = Confidence_in_survey, subset = Geographic_group == "Other_Europe"))
+```
+##### - NO papers sample
+
+```{r}
+summary(subset(x = Survey_Dummy_Variables_Rowan_Simple_V1, select = Confidence_in_survey, subset = Publications_read == "0"))
+```
+##### - 1-5 papers sample
+
+```{r}
+summary(subset(x = Survey_Dummy_Variables_Rowan_Simple_V1, select = Confidence_in_survey, subset = Publications_read == "1-5"))
+```
+
+##### - 6-10 papers sample
+
+```{r}
+summary(subset(x = Survey_Dummy_Variables_Rowan_Simple_V1, select = Confidence_in_survey, subset = Publications_read == "6-10"))
+```
+
+##### - 11-20 papers sample
+
+```{r}
+summary(subset(x = Survey_Dummy_Variables_Rowan_Simple_V1, select = Confidence_in_survey, subset = Publications_read == "11-20"))
+```
+
+##### - 21+ papers sample
+
+```{r}
+summary(subset(x = Survey_Dummy_Variables_Rowan_Simple_V1, select = Confidence_in_survey, subset = Publications_read == "21+"))
+```
+### h) Papers : Who, how many ! 
+
+```{r}
+esquisser(Survey_Dummy_Variables_Rowan_Simple_V1)
+
+library(ggplot2)
+
+ggplot(Survey_Dummy_Variables_Rowan_Simple_V1) +
+ aes(x = Publications_read) +
+ geom_bar(fill = "#29467B") +
+ labs(x = "Number of scientific publications regarding Arctic char read", y = "Counts") +
+ theme_minimal() +
+ scale_x_discrete(limits = c("0", "1-5", "6-10", "11-20", "21+"))
+```
+### i) Char interest 
+
+```{r}
+No_averaged_observations_char_interest <- Survey_Dummy_Variables_Rowan_Simple_V1 %>% 
+  filter(., !between(Char_conservation_interest, 7.01, 7.99)) 
+
+esquisser(No_averaged_observations_char_interest)
+
+library(ggplot2)
+
+ggplot(No_averaged_observations_char_interest) +
+ aes(x = Char_conservation_interest) +
+ geom_histogram(bins = 7L, 
+ fill = "#112446") +
+ theme_minimal()
+```
+
+
+
 - Char interest : I want a frequency/barplot.
-- Papers : Who, how many ! 
+
 - Sufficiently protected first and second: Compare means and variances.
   Maybe a plot with the two distributions.
 - Anticipation of info: Just %. 
