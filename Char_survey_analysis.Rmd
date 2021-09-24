@@ -100,9 +100,14 @@ After meeting :
 
 14) Find ways to optimise the model !
 
+15) Removing the extreme risk-loving values may re-normalise the distribution. 
 
+The objective is to normalise the CRRA values to include them into a regression. 
 
+16) What to do with the allocation variables 
 
+How can we fit the allocation variables into the regression ?
+Do we want to in the first place ?
 
 
 
@@ -281,6 +286,7 @@ Survey_Dummy_Variables_Rowan_V9 <- Survey_Dummy_Variables_Rowan_V8 %>%
   # Remove the crap.
   select(., -c(TrueFalse_DV_1, TrueFalse_DV_2, TrueFalse_DV_3, TrueFalse_DV_4, TrueFalse_DV_5, TrueFalse_DV_6, TrueFalse_DV_7,TrueFalse_DV_8,TrueFalse_DV_9,TrueFalse_DV_10,TrueFalse_DV_11,TrueFalse_DV_12))
 ```
+
 ## H) Calculate the "Lottery switch" and "CRRA" values
 
 Basically, when are they switching from B to A ?
@@ -638,6 +644,7 @@ Linearmod_test_Round1 <- lm(formula = Alloc_HR_Round1 ~
 summary(Linearmod_test_Round1)
 ```
    
+
 ## II) Model Round 2)
 
 ```{r}
@@ -780,13 +787,13 @@ summary(Linearmod_test_Profile)
 Now the goal is to make a model that predicts the difference of allocation between Round 1 and Round 2. 
 This should be interesting. 
 Then we will do the same with Round 2 to 3. 
-I think that a linear regression will do the job! 
+I think that a linear regression will do the job!
 
 ```{r}
 Linearmod_Diff_Round1to2 <- lm(formula = Alloc_diff_Round1to2 ~ 
-                          Age_grouped + 
-                          Geographic_group + 
-                          Duration + 
+                          Age_grouped +
+                          Geographic_group +
+                          Duration +
                           Gender + 
                           Employed_Dummy + 
                           Student_Dummy + 
@@ -815,9 +822,17 @@ Linearmod_Diff_Round1to2 <- lm(formula = Alloc_diff_Round1to2 ~
                           Alloc_HR_Round3 +
                           Alloc_profile_AllRounds 
                         
-                        , data = Survey_Dummy_Variables_Rowan_Simple_V1) 
+                        , data = Survey_Dummy_Variables_Rowan_Simple_V1,
+                        singular.ok = F) 
 ```
   
+```{r}
+alias( Linearmod_Diff_Round1to2 )
+
+car::vif(Linearmod_Diff_Round1to2)
+```
+
+
 ```{r}
 summary(Linearmod_Diff_Round1to2)
 ```
@@ -865,6 +880,111 @@ Linearmod_Diff_Round2to3 <- lm(formula = Alloc_diff_Round2to3 ~
 ```{r}
 summary(Linearmod_Diff_Round2to3)
 ```
+
+## VII) Model CRRA populations
+
+We do the same with the CRRA with populations to detect issues. 
+
+```{r}
+Linearmod_Pop_CRRA <- lm(formula = Pop_CRRA ~ 
+                          Age_grouped + 
+                          Geographic_group + 
+                          Duration + 
+                          Gender + 
+                          Employed_Dummy + 
+                          Student_Dummy + 
+                          Retired_Dummy + 
+                          University_Research_Dummy +
+                          Environmental_Protection_Agency_Dummy +
+                          Wildlife_Conservation_Dummy +
+                          Undergrad_Dummy + 
+                          Postgrad_Dummy +
+                          Work_Exp_Dummy +
+                          Study_Exp_Dummy +
+                          Volunteering_Exp_Dummy +
+                          Confidence_in_survey +
+                          Char_conservation_interest +
+                          # No_Papers_Dummy +  Removed as in total collinearity with Many papers dummy
+                          Some_Papers_Dummy +
+                          Many_Papers_Dummy +
+                          Scale_Sufficently_Protected_First +
+                          Scale_Sufficently_Protected_Second +
+                          Group +
+                          TrueFalseScore +
+                          Money_Switch +
+                          Money_CRRA +
+                          Pop_Switch 
+                        
+                        , data = as.data.frame(Survey_Dummy_Variables_Rowan_Simple_V1)) 
+```
+  
+```{r}
+summary(Linearmod_Pop_CRRA)
+```
+
+## VIII) Model CRRA populations - NoMoney questions
+
+We do the same with the CRRA with populations to detect issues. 
+
+```{r}
+Linearmod_NoMoney_Pop_CRRA <- lm(formula = Pop_CRRA ~ 
+                          Age_grouped + 
+                          Geographic_group + 
+                          Duration + 
+                          Gender + 
+                          Employed_Dummy + 
+                          Student_Dummy + 
+                          Retired_Dummy + 
+                          University_Research_Dummy +
+                          Environmental_Protection_Agency_Dummy +
+                          Wildlife_Conservation_Dummy +
+                          Undergrad_Dummy + 
+                          Postgrad_Dummy +
+                          Work_Exp_Dummy +
+                          Study_Exp_Dummy +
+                          Volunteering_Exp_Dummy +
+                          Confidence_in_survey +
+                          Char_conservation_interest +
+                          # No_Papers_Dummy +  Removed as in total collinearity with Many papers dummy
+                          Some_Papers_Dummy +
+                          Many_Papers_Dummy +
+                          Scale_Sufficently_Protected_First +
+                          Scale_Sufficently_Protected_Second +
+                          Group +
+                          TrueFalseScore 
+                        
+                        , data = as.data.frame(Survey_Dummy_Variables_Rowan_Simple_V1)) 
+```
+
+Our data is not normally distributed.
+```{r}
+ggplot(Survey_Dummy_Variables_Rowan_Simple_V1) +
+ aes(x = Money_CRRA) +
+ geom_histogram(bins = 30L, fill = "#112446") +
+ theme_minimal()
+```
+
+  
+```{r}
+summary(Linearmod_NoMoney_Pop_CRRA)
+```
+## IX) Normalise data and create new model with integrated difference in risk aversions. 
+
+The idea is to combine our CRRA and Aloocation variables in order to see if they give more information within a regression model. 
+Let's try to see how we can combine these things in a meaningful way.
+
+The objective is to normalise the CRRA values to include them into a regression.
+
+```{r}
+Survey_Dummy_Variables_Rowan_Simple_V2 <- Survey_Dummy_Variables_Rowan_Simple_V1 %>% 
+  mutate(., Hybrid_CRRA_Alloc = Pop_CRRA * Alloc_HR_Round2)
+```
+
+```{r}
+esquisser(Survey_Dummy_Variables_Rowan_Simple_V2)
+```
+
+
 
 # 4) Various plots and statistics
 
