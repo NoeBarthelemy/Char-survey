@@ -76,7 +76,7 @@ Threshold 10% of dataset to make a variable significant in the regression.
 List of things to do : 
 7) Manually (or with code) tidy the "Highest education level" variable. The "College" should be put as "Undergraduate", to reflect the higher education level that it is.
 
-8) Discuss with George about the missing values and how to deal with them: Remove them, impute the mean observation, impute with a predictive model or create dummy variables to bypass the whole thing?  (Same thing for "Char conservation interest" and "Sufficiently protected")
+8) Discuss with George about the missing values and how to deal with them: Remove them, impute the mean observation, impute with a predictive model or create dummy variables to bypass the whole thing?  (Same thing for "Char conservation interest" and "Sufficiently protected").
 
 For the true or false: ALSO, report in the text of the paper which answers were really common and interesting (eg. if people think that char are endangered).
 
@@ -86,11 +86,11 @@ For the true or false: ALSO, report in the text of the paper which answers were 
 
 Next meeting: 10/09/2021 
 
-12) Get the CRRA into a code.
+12) Got the CRRA into a code.
 
 More info about the CRRA : http://library.lshtm.ac.uk/MSc_PHDC/2014-2015/108643.pdf 
 *** 
-What we did is replaced the "inf" value of CRRA by -2 for VERY risk lobing people
+What we did is replaced the "inf" value of CRRA by -2 for VERY risk loving people
 AND by -2.5 for the people who never switched ! 
 ***
 
@@ -104,7 +104,7 @@ After meeting :
 
 The objective is to normalise the CRRA values to include them into a regression. 
 
-16) What to do with the allocation variables 
+16) What to do with the allocation variables
 
 How can we fit the allocation variables into the regression ?
 Do we want to in the first place ?
@@ -444,11 +444,19 @@ Survey_Dummy_Variables_Rowan_V14 <- Survey_Dummy_Variables_Rowan_V13 %>%
   mutate(., Duration_in_minutes = Duration/60)
 ```
 
-## L) Simple version 
+## L) Create a numeric version of papers read
+
+```{r}
+Survey_Dummy_Variables_Rowan_V15 <- Survey_Dummy_Variables_Rowan_V14 %>% 
+  mutate(., Papers_read_fakeNumeric = ifelse(Publications_read == "0", 0, ifelse(Publications_read == "1-5", 5, ifelse(Publications_read == "6-10", 10, ifelse(Publications_read == "11-20", 20, ifelse(Publications_read == "21+", 30, NA)))) )) 
+```
+
+
+## M) Simple version 
 
 Make a Simple version of the table
 ```{r}
-Survey_Dummy_Variables_Rowan_Simple_V1 <- Survey_Dummy_Variables_Rowan_V14 %>% 
+Survey_Dummy_Variables_Rowan_Simple_V1 <- Survey_Dummy_Variables_Rowan_V15 %>% 
   select(., - c(Year_of_birth, Age, Employment_status, Highest_education_level, Conservation_experience, Useless, True_false_question, Risk_lottery_money_99, Risk_lottery_money_90, Risk_lottery_money_80, Risk_lottery_money_70, Risk_lottery_money_60, Risk_lottery_money_50, Risk_lottery_money_40, Risk_lottery_money_30, Risk_lottery_money_20, Risk_lottery_money_10, Risk_lottery_populations_99, Risk_lottery_populations_90, Risk_lottery_populations_80, Risk_lottery_populations_70, Risk_lottery_populations_60, Risk_lottery_populations_50, Risk_lottery_populations_40, Risk_lottery_populations_30, Risk_lottery_populations_20, Risk_lottery_populations_10, Q1_Risk_Rating, Q2_Risk_Rating, Q3_Risk_Rating, Q4_Risk_Rating, Q5_Risk_Rating, Q6_Risk_Rating, Q7_Risk_Rating, Q8_Risk_Rating, Q9_Risk_Rating, Q10_Risk_Rating, Q1_Conservation_Risk_Rating_, Q2_Conservation_Risk_Rating_, Q3_Conservation_Risk_Rating_, Q4_Conservation_Risk_Rating_, Q5_Conservation_Risk_Rating_, Q6_Conservation_Risk_Rating_, Q7_Conservation_Risk_Rating_, Q8_Conservation_Risk_Rating_, Q9_Conservation_Risk_Rating_, Q10_Conservation_Risk_Rating_, Risk_Reduction_LR_14_percent, Risk_Reduction_LR_20_percent, Risk_Reduction_HR_70_percent, Risk_Reduction_HR_50_percent, Risk_Reduction_LR_40_percent_Round_2, Risk_Reduction_HR_80_percent_Round_2, Risk_Reduction_LR_40_percent_Round_3, Risk_Reduction_HR_80_percent_Round_3))  %>% 
   
   # FILTER OUT MORE NA'S TO SOLVE THE MISSING DATA PROBLEM
@@ -1308,30 +1316,178 @@ ggplot(Survey_Dummy_Variables_Rowan_Simple_V1) +
 ```{r}
 No_averaged_observations_char_interest <- Survey_Dummy_Variables_Rowan_Simple_V1 %>% 
   filter(., !between(Char_conservation_interest, 7.01, 7.99)) 
-
-esquisser(No_averaged_observations_char_interest)
-
-library(ggplot2)
-
+ 
 ggplot(No_averaged_observations_char_interest) +
  aes(x = Char_conservation_interest) +
  geom_histogram(bins = 7L, 
  fill = "#112446") +
  theme_minimal()
 ```
+!!!! NA VALUES THAT WERE ARTIFICIALLY PUT ON THE AVERAGE WERE EXCLUDED HERE !!!! 
+
+### j) Anticipation of new info
+ 
+- Anticipation of info: %. 
+
+##### - General sample
+```{r}
+Anticipation <- Survey_Dummy_Variables_Rowan_Simple_V1 %>% 
+  filter(., !is.na(Information_anticipation))
+
+# Percentage of people who anticipated:  
+(sum(with(Anticipation, Information_anticipation == "Yes")) / nrow(Anticipation) * 100)
+
+# Percentage of people who DID NOT anticipate:  
+(sum(with(Anticipation, Information_anticipation == "No")) / nrow(Anticipation) * 100)
+```
+
+Loads of interesting plots ! 
+Would require a model too I think!
+
+!!! NA ARE EXCLUDED FROM THESE PLOTS !!! 
+
+```{r} 
+Survey_Dummy_Variables_Rowan_Simple_V1 %>%
+ filter(!is.na(Information_anticipation)) %>%
+ ggplot() +
+ aes(x = Information_anticipation) +
+ geom_bar(fill = "#112446") +
+ theme_minimal()
+
+Survey_Dummy_Variables_Rowan_Simple_V1 %>%
+ filter(!is.na(Information_anticipation)) %>%
+ ggplot() +
+ aes(x = Age_grouped, fill = Information_anticipation) +
+ geom_bar() +
+ scale_fill_hue(direction = 1) +
+ theme_minimal()
+
+Survey_Dummy_Variables_Rowan_Simple_V1 %>%
+ filter(!is.na(Information_anticipation)) %>%
+ ggplot() +
+ aes(x = Confidence_in_survey, fill = Information_anticipation) +
+ geom_histogram(bins = 30L) +
+ scale_fill_hue(direction = 1) +
+ theme_minimal()
+
+Survey_Dummy_Variables_Rowan_Simple_V1 %>%
+ filter(!is.na(Information_anticipation)) %>%
+ ggplot() +
+ aes(x = Publications_read, fill = Information_anticipation) +
+ geom_bar() +
+ scale_fill_hue(direction = 1) +
+ theme_minimal()
+
+Survey_Dummy_Variables_Rowan_Simple_V1 %>%
+ filter(!is.na(Information_anticipation)) %>%
+ ggplot() +
+ aes(x = TrueFalseScore, fill = Information_anticipation) +
+ geom_histogram(bins = 30L) +
+ scale_fill_hue(direction = 1) +
+ theme_minimal()
+
+Survey_Dummy_Variables_Rowan_Simple_V1 %>%
+ filter(!is.na(Information_anticipation)) %>%
+ ggplot() +
+ aes(x = Alloc_profile_Round2to3, fill = Information_anticipation) +
+ geom_bar() +
+ scale_fill_hue(direction = 1) +
+ theme_minimal()
 
 
+Survey_Dummy_Variables_Rowan_Simple_V1 %>%
+ filter(!is.na(Information_anticipation)) %>%
+ ggplot() +
+  aes(x = Alloc_diff_Round2to3) +
+  geom_density(adjust = 1L, fill = "#526C9B") +
+  theme_minimal() +
+  facet_wrap(vars(Information_anticipation))
 
-- Char interest : I want a frequency/barplot.
+# A variant of the previous plot
+ggplot(Anticipation, aes(x = Alloc_diff_Round2to3, fill = Information_anticipation)) + geom_density(alpha = 0.5) +
+ labs(x = "Difference of budget allocation to High-Risk populations between Round two and three", y = "Density", title = "Niceplot") +
+ theme_minimal()
+```
+The last three plots makes a lot of sense : 
+The people who anticipated that "low risk" populations could be unique too have much less modifies there answers from Round two to three. 
+Interestingly, some anticipated but did change it ... 
 
-- Sufficiently protected first and second: Compare means and variances.
-  Maybe a plot with the two distributions.
-- Anticipation of info: Just %. 
+### k) Comfortable with experiment.
+
 - Comfortable with experiment : Just % 
-- Taxonomy : Just %. 
-- TrueFalse Score : Average, min max. 
 
-## Sufficiently protected
+##### - General sample
+```{r}
+Comfortably <- Survey_Dummy_Variables_Rowan_Simple_V1 %>% 
+  filter(., !is.na(Comfortable_with_Exp))
+
+# Percentage of people who anticipated:  
+(sum(with(Comfortably, Comfortable_with_Exp == "Yes")) / nrow(Comfortably) * 100)
+
+# Percentage of people who DID NOT anticipate:  
+(sum(with(Comfortably, Comfortable_with_Exp == "No")) / nrow(Comfortably) * 100)
+```
+Did that have something to see with the median duration ? 
+```{r}
+Comfortably %>%
+  group_by(Comfortable_with_Exp) %>%
+  summarise_at(vars(Duration_in_minutes), list(name = median))
+```
+### l) Taxonomy 
+
+```{r}
+Survey_Dummy_Variables_Rowan_Simple_V1 %>%
+ filter(!is.na(Taxonomy)) %>%
+ ggplot() +
+ aes(x = Taxonomy) +
+ geom_bar(fill = "#112446") +
+ theme_minimal() +
+ facet_wrap(vars(Publications_read))
+
+# A variant of the previous plot
+Survey_Dummy_Variables_Rowan_Simple_V1 %>% 
+  filter(!is.na(Taxonomy)) %>%
+  ggplot(., aes(x = Papers_read_fakeNumeric, fill = Taxonomy)) + geom_density(alpha = 0.7) +
+ labs(x = "Number of papers read", y = "Density", title = "Niceplot") +
+ theme_minimal()
+
+Survey_Dummy_Variables_Rowan_Simple_V1 %>%
+ filter(!is.na(Taxonomy)) %>%
+ ggplot() +
+ aes(x = Taxonomy) +
+ geom_bar(fill = "#112446") +
+ theme_minimal() +
+ facet_wrap(vars(Many_Papers_Dummy)) +
+ labs(x = "Before the survey, did you think that char taxonomy was inadequate ?", y = "Count", title = "Opinion on taxonomy depending on wether they have read a lot \n of papers about char (1) or not (0)") 
+```
+
+
+### m) TrueFalse Score 
+
+Average, min max. 
+```{r}
+
+```
+
+
+Plot 
+```{r}
+Survey_Dummy_Variables_Rowan_Simple_V1 %>% 
+  filter(., !is.na(TrueFalseScore)) %>% 
+  ggplot(., aes(x = TrueFalseScore, fill = as.factor(Papers_read_fakeNumeric))) + geom_density(alpha = 0.5) +
+ labs(x = "True or False score", y = "Density", title = "True or false score varying with papers read") +
+ theme_minimal()
+
+Survey_Dummy_Variables_Rowan_Simple_V1 %>% 
+  filter(., !is.na(TrueFalseScore)) %>% 
+  ggplot(., aes(x = TrueFalseScore, fill = as.factor(Many_Papers_Dummy))) + geom_density(alpha = 0.5) +
+ labs(x = "True or False score", y = "Density", title = "True or false score varying with papers read") +
+ theme_minimal()
+
+```
+
+
+### n) Sufficiently protected
 
 - Sufficiently protected first and second: Compare means and variances.
   Maybe a plot with the two distributions.
@@ -1350,7 +1506,10 @@ Sufficiently_protected_data_second <- Survey_Dummy_Variables_Rowan_Simple_V1 %>%
 
 Sufficiently_protected_data <- rbind(Sufficiently_protected_data_first, Sufficiently_protected_data_second)
 
-ggplot(Sufficiently_protected_data, aes(x = Scale_Sufficently_Protected, fill = Time_asked)) + geom_density(alpha = 0.5) +
+
+Sufficiently_protected_data %>% 
+ggplot(., aes(x = Scale_Sufficently_Protected, fill = Time_asked)) + 
+  geom_density(alpha = 0.5) +
  labs(x = "Disagreement scale with suggestion that char are sufficiently protected in Ireland") +
  theme_minimal()
 ```
@@ -1360,10 +1519,15 @@ t.test(Survey_Dummy_Variables_Rowan_Simple_V1$Scale_Sufficently_Protected_First,
 ```
 Try it on different subsets.
 ```{r}
+# Students
 Susbet_Students <- Survey_Dummy_Variables_Rowan_Simple_V1 %>% 
     filter(., Student_Dummy == 1)
-
 t.test(Susbet_Students$Scale_Sufficently_Protected_First, Susbet_Students$Scale_Sufficently_Protected_Second, alternative = "less" )
+
+# Char_conservation_interest
+Susbet_Char_conservation_interest <- Survey_Dummy_Variables_Rowan_Simple_V1 %>% 
+    filter(., Char_conservation_interest < 7)
+t.test(Susbet_Char_conservation_interest$Scale_Sufficently_Protected_First, Susbet_Char_conservation_interest$Scale_Sufficently_Protected_Second, alternative = "less" )
 ```
 ## II) Extra models 
 
