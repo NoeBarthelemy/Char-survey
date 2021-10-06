@@ -35,6 +35,7 @@ Survey_Dummy_Variables_Rowan_V1_September2021 <- Survey_Dummy_Variables_Rowan_V1
   mutate(., Employed_Dummy = ifelse(Employment_status == "Employed", 1, 0)) %>% 
   mutate(., Retired_Dummy = ifelse(Employment_status == "Retired", 1, 0)) %>% 
   mutate(., Student_Dummy = ifelse(Employment_status == "Full time student / apprenticeship", 1, 0)) %>% 
+  mutate(., Employment_status = ifelse(Employment_status == "Full time student / apprenticeship", "Student", Employment_status)) %>% 
   mutate(., Undergrad_Dummy = ifelse(Highest_education_level == "University - undergraduate degree", 1, 0)) %>% 
   mutate(., Postgrad_Dummy = ifelse(Highest_education_level == "University - postgraduate degree", 1, 0)) %>% 
   mutate(., No_Papers_Dummy = ifelse(Publications_read == "0", 1, 0)) %>% 
@@ -112,12 +113,26 @@ Do we want to in the first place ?
 
 
 
-
+# Documentation
 
 ABOUT NA'S in regression models: 
 https://bookdown.org/egarpor/PM-UC3M/app-nas.html 
 
+To get familiar with models and stuff :
+https://www.econometrics-with-r.org/4-1-simple-linear-regression.html 
 
+About multicollinearity :
+https://www.analyticsvidhya.com/blog/2020/03/what-is-multicollinearity/
+
+
+About SUR "Seamingly Unrelated Regression" :
+https://en.wikipedia.org/wiki/Seemingly_unrelated_regressions 
+
+About CRRA : 
+EXPLAINING THE CHARACTERISTICS OF THE POWER (CRRA) UTILITY FAMILY : https://personal.eur.nl/wakker/pdfspubld/08.6powerut.pdf 
+
+About utility functions: 
+https://www.investopedia.com/ask/answers/072915/what-utility-function-and-how-it-calculated.asp 
 
 
 # 1) Dataset filtering and formatting. 
@@ -136,9 +151,9 @@ Baby_names_only <- babynames %>% select(., name) %>% unique()
 
 # Commented line below so that the names don't change once sampled! 
 # Baby_names_sample <- sample_n(Baby_names_only, nrow(Survey_Dummy_Variables_Rowan_V1_September2021)) 
-Survey_Dummy_Variables_Rowan_V1_September2021 <- cbind(Baby_names_sample, Survey_Dummy_Variables_Rowan_V1_September2021)
+Survey_Dummy_Variables_Rowan_V1_named<- cbind(Baby_names_sample, Survey_Dummy_Variables_Rowan_V1_September2021)
 
-Survey_Dummy_Variables_Rowan_V2 <- Survey_Dummy_Variables_Rowan_V1_September2021 %>% 
+Survey_Dummy_Variables_Rowan_V2 <- Survey_Dummy_Variables_Rowan_V1_named %>% 
   filter(., Progress >= 70) %>% 
   # Create a variable that summarises missing data.
   mutate(MissingData = rowSums(is.na(.))) %>% 
@@ -439,15 +454,33 @@ Survey_Dummy_Variables_Rowan_V13 <- Survey_Dummy_Variables_Rowan_V12 %>%
 
 ## K) Sort the Duration variable
 
+Ok we will not only put that in minutes but also take in account that some stupid respondents left the tab open for ages and thus don't fall AT ALL in the usual duration distribution.
+
 ```{r}
 Survey_Dummy_Variables_Rowan_V14 <- Survey_Dummy_Variables_Rowan_V13 %>% 
-  mutate(., Duration_in_minutes = Duration/60)
+  mutate(., Duration_in_minutes = Duration/60) 
+
+summary(Survey_Dummy_Variables_Rowan_V14$Duration_in_minutes)
 ```
+We will modify extreme values to a maximum cap of 50mn, which is way above the third quantile of the distribution. 
+Nobody should really take more than 50 minutes. 
+
+No actually it is better to put NA instead !!
+
+```{r}
+Survey_Dummy_Variables_Rowan_V14.5 <- Survey_Dummy_Variables_Rowan_V14 %>% 
+  mutate(., Duration_in_minutes_capped = ifelse(Duration_in_minutes > 50, NA, Duration_in_minutes)) 
+```
+
+
+
+
+
 
 ## L) Create a numeric version of papers read
 
 ```{r}
-Survey_Dummy_Variables_Rowan_V15 <- Survey_Dummy_Variables_Rowan_V14 %>% 
+Survey_Dummy_Variables_Rowan_V15 <- Survey_Dummy_Variables_Rowan_V14.5 %>% 
   mutate(., Papers_read_fakeNumeric = ifelse(Publications_read == "0", 0, ifelse(Publications_read == "1-5", 5, ifelse(Publications_read == "6-10", 10, ifelse(Publications_read == "11-20", 20, ifelse(Publications_read == "21+", 30, NA)))) )) 
 ```
 
@@ -457,10 +490,13 @@ Survey_Dummy_Variables_Rowan_V15 <- Survey_Dummy_Variables_Rowan_V14 %>%
 Make a Simple version of the table
 ```{r}
 Survey_Dummy_Variables_Rowan_Simple_V1 <- Survey_Dummy_Variables_Rowan_V15 %>% 
-  select(., - c(Year_of_birth, Age, Employment_status, Highest_education_level, Conservation_experience, Useless, True_false_question, Risk_lottery_money_99, Risk_lottery_money_90, Risk_lottery_money_80, Risk_lottery_money_70, Risk_lottery_money_60, Risk_lottery_money_50, Risk_lottery_money_40, Risk_lottery_money_30, Risk_lottery_money_20, Risk_lottery_money_10, Risk_lottery_populations_99, Risk_lottery_populations_90, Risk_lottery_populations_80, Risk_lottery_populations_70, Risk_lottery_populations_60, Risk_lottery_populations_50, Risk_lottery_populations_40, Risk_lottery_populations_30, Risk_lottery_populations_20, Risk_lottery_populations_10, Q1_Risk_Rating, Q2_Risk_Rating, Q3_Risk_Rating, Q4_Risk_Rating, Q5_Risk_Rating, Q6_Risk_Rating, Q7_Risk_Rating, Q8_Risk_Rating, Q9_Risk_Rating, Q10_Risk_Rating, Q1_Conservation_Risk_Rating_, Q2_Conservation_Risk_Rating_, Q3_Conservation_Risk_Rating_, Q4_Conservation_Risk_Rating_, Q5_Conservation_Risk_Rating_, Q6_Conservation_Risk_Rating_, Q7_Conservation_Risk_Rating_, Q8_Conservation_Risk_Rating_, Q9_Conservation_Risk_Rating_, Q10_Conservation_Risk_Rating_, Risk_Reduction_LR_14_percent, Risk_Reduction_LR_20_percent, Risk_Reduction_HR_70_percent, Risk_Reduction_HR_50_percent, Risk_Reduction_LR_40_percent_Round_2, Risk_Reduction_HR_80_percent_Round_2, Risk_Reduction_LR_40_percent_Round_3, Risk_Reduction_HR_80_percent_Round_3))  %>% 
+  select(., - c(Duration, Duration_in_minutes, Year_of_birth, Female, Male, Age ,Highest_education_level, Conservation_experience, Useless, True_false_question, Risk_lottery_money_99, Risk_lottery_money_90, Risk_lottery_money_80, Risk_lottery_money_70, Risk_lottery_money_60, Risk_lottery_money_50, Risk_lottery_money_40, Risk_lottery_money_30, Risk_lottery_money_20, Risk_lottery_money_10, Risk_lottery_populations_99, Risk_lottery_populations_90, Risk_lottery_populations_80, Risk_lottery_populations_70, Risk_lottery_populations_60, Risk_lottery_populations_50, Risk_lottery_populations_40, Risk_lottery_populations_30, Risk_lottery_populations_20, Risk_lottery_populations_10, Q1_Risk_Rating, Q2_Risk_Rating, Q3_Risk_Rating, Q4_Risk_Rating, Q5_Risk_Rating, Q6_Risk_Rating, Q7_Risk_Rating, Q8_Risk_Rating, Q9_Risk_Rating, Q10_Risk_Rating, Q1_Conservation_Risk_Rating_, Q2_Conservation_Risk_Rating_, Q3_Conservation_Risk_Rating_, Q4_Conservation_Risk_Rating_, Q5_Conservation_Risk_Rating_, Q6_Conservation_Risk_Rating_, Q7_Conservation_Risk_Rating_, Q8_Conservation_Risk_Rating_, Q9_Conservation_Risk_Rating_, Q10_Conservation_Risk_Rating_, Risk_Reduction_LR_14_percent, Risk_Reduction_LR_20_percent, Risk_Reduction_HR_70_percent, Risk_Reduction_HR_50_percent, Risk_Reduction_LR_40_percent_Round_2, Risk_Reduction_HR_80_percent_Round_2, Risk_Reduction_LR_40_percent_Round_3, Risk_Reduction_HR_80_percent_Round_3))  %>% 
   
   # FILTER OUT MORE NA'S TO SOLVE THE MISSING DATA PROBLEM
-filter(., !is.na(Alloc_diff_Round2to3))
+filter(., !is.na(Alloc_diff_Round2to3)) %>% 
+  
+  # Remove the Student / Employed / Retired dummies: They create false collinearity. 
+select(., -c(Employed_Dummy, Student_Dummy, Retired_Dummy))
   
 
 Survey_Dummy_Variables_Rowan_Simple_V1$Work_Exp_Dummy <- as.numeric(Survey_Dummy_Variables_Rowan_Simple_V1$Work_Exp_Dummy)
@@ -481,14 +517,14 @@ Survey_Dummy_Variables_Rowan_Simple_V1$Alloc_diff_Round2to3 <- as.numeric(Survey
 # summary(Survey_Dummy_Variables_Rowan_Simple_V1)
 ```
 
-# 2) Some plotting: 
+# 2) Plotting
 
 ```{r}
 # esquisser(Survey_Dummy_Variables_Rowan_Simple_V1)
 ```
 
 
-# 3) Now the model
+# 3) The main models
 
 
 ## Preamble - How to interpret a model
@@ -615,11 +651,9 @@ the_budget_allocation_experiment?_-_Selected_Choice"
 Linearmod_test_Round1 <- lm(formula = Alloc_HR_Round1 ~ 
                           Age_grouped + 
                           Geographic_group + 
-                          Duration + 
+                          Duration_in_minutes_capped + 
                           Gender + 
-                          Employed_Dummy + 
-                          Student_Dummy + 
-                          Retired_Dummy + 
+                          Employment_status +
                           University_Research_Dummy +
                           Environmental_Protection_Agency_Dummy +
                           Wildlife_Conservation_Dummy +
@@ -630,23 +664,41 @@ Linearmod_test_Round1 <- lm(formula = Alloc_HR_Round1 ~
                           Volunteering_Exp_Dummy +
                           Confidence_in_survey +
                           Char_conservation_interest +
-                          # No_Papers_Dummy +  Removed as in total collinearity with Many papers dummy
-                          Some_Papers_Dummy +
-                          Many_Papers_Dummy +
+                          Publications_read +
                           Scale_Sufficently_Protected_First +
                           Scale_Sufficently_Protected_Second +
                           Group +
                           TrueFalseScore +
-                          Money_Switch +
+                          # Money_Switch + Collinear !!
                           Money_CRRA +
-                          Pop_Switch +
+                          # Pop_Switch +  Collinear !!
                           Pop_CRRA + 
                           Alloc_HR_Round2 +
                           Alloc_HR_Round3 +
+                          Information_anticipation +
                           Alloc_profile_AllRounds 
                         
                         , data = Survey_Dummy_Variables_Rowan_Simple_V1) 
 ```
+  
+### a) Multicollinearity 
+
+VIF (Variable Inflation Factors).
+
+ "VIF determines the strength of the correlation between the independent variables. It is predicted by taking a variable and regressing it against every other variable." 
+ 
+ * Interpretation guide *
+    VIF starts at 1 and has no upper limit
+    VIF = 1, no correlation between the independent variable and the other variables
+    VIF exceeding 5 or 10 indicates high multicollinearity between this independent variable and the others
+
+
+```{r}
+alias( Linearmod_test_Round1 )
+
+car::vif(Linearmod_test_Round1)
+```
+  
   
 ```{r}
 summary(Linearmod_test_Round1)
@@ -659,11 +711,9 @@ summary(Linearmod_test_Round1)
 Linearmod_test_Round2 <- lm(formula = Alloc_HR_Round2 ~ 
                           Age_grouped + 
                           Geographic_group + 
-                          Duration + 
+                          Duration_in_minutes_capped + 
                           Gender + 
-                          Employed_Dummy + 
-                          Student_Dummy + 
-                          Retired_Dummy + 
+                          Employment_status +
                           University_Research_Dummy +
                           Environmental_Protection_Agency_Dummy +
                           Wildlife_Conservation_Dummy +
@@ -674,19 +724,16 @@ Linearmod_test_Round2 <- lm(formula = Alloc_HR_Round2 ~
                           Volunteering_Exp_Dummy +
                           Confidence_in_survey +
                           Char_conservation_interest +
-                          # No_Papers_Dummy +  Removed as in total collinearity with Many papers dummy
-                          Some_Papers_Dummy +
-                          Many_Papers_Dummy +
+                          Publications_read +
                           Scale_Sufficently_Protected_First +
                           Scale_Sufficently_Protected_Second +
                           Group +
                           TrueFalseScore +
-                          Money_Switch +
                           Money_CRRA +
-                          Pop_Switch +
                           Pop_CRRA + 
                           Alloc_HR_Round1 +
                           Alloc_HR_Round3 +
+                          Information_anticipation +
                           Alloc_profile_AllRounds 
                         
                         , data = Survey_Dummy_Variables_Rowan_Simple_V1) 
@@ -702,11 +749,9 @@ summary(Linearmod_test_Round2)
 Linearmod_test_Round3 <- lm(formula = Alloc_HR_Round3 ~ 
                           Age_grouped + 
                           Geographic_group + 
-                          Duration + 
+                          Duration_in_minutes_capped + 
                           Gender + 
-                          Employed_Dummy + 
-                          Student_Dummy + 
-                          Retired_Dummy + 
+                          Employment_status +
                           University_Research_Dummy +
                           Environmental_Protection_Agency_Dummy +
                           Wildlife_Conservation_Dummy +
@@ -717,19 +762,16 @@ Linearmod_test_Round3 <- lm(formula = Alloc_HR_Round3 ~
                           Volunteering_Exp_Dummy +
                           Confidence_in_survey +
                           Char_conservation_interest +
-                          # No_Papers_Dummy +  Removed as in total collinearity with Many papers dummy
-                          Some_Papers_Dummy +
-                          Many_Papers_Dummy +
+                          Publications_read +
                           Scale_Sufficently_Protected_First +
                           Scale_Sufficently_Protected_Second +
                           Group +
                           TrueFalseScore +
-                          Money_Switch +
                           Money_CRRA +
-                          Pop_Switch +
                           Pop_CRRA + 
                           Alloc_HR_Round1 +
                           Alloc_HR_Round2 +
+                          Information_anticipation +
                           Alloc_profile_AllRounds 
                         
                         , data = Survey_Dummy_Variables_Rowan_Simple_V1) 
@@ -753,11 +795,9 @@ Survey_Dummy_Variables_Rowan_Simple_V1$Alloc_profile_AllRounds <- relevel(as.fac
 Linearmod_test_Profile <- multinom(formula = Alloc_profile_AllRounds ~ 
                           Age_grouped + 
                           Geographic_group + 
-                          Duration + 
+                          Duration_in_minutes_capped + 
                           Gender + 
-                          Employed_Dummy + 
-                          Student_Dummy + 
-                          Retired_Dummy + 
+                          Employment_status +
                           University_Research_Dummy +
                           Environmental_Protection_Agency_Dummy +
                           Wildlife_Conservation_Dummy +
@@ -768,20 +808,17 @@ Linearmod_test_Profile <- multinom(formula = Alloc_profile_AllRounds ~
                           Volunteering_Exp_Dummy +
                           Confidence_in_survey +
                           Char_conservation_interest +
-                          # No_Papers_Dummy +  Removed as in total collinearity with Many papers dummy
-                          Some_Papers_Dummy +
-                          Many_Papers_Dummy +
+                          Publications_read +
                           Scale_Sufficently_Protected_First +
                           Scale_Sufficently_Protected_Second +
                           Group +
                           TrueFalseScore +
-                          Money_Switch +
                           Money_CRRA +
-                          Pop_Switch +
                           Pop_CRRA + 
                           Alloc_HR_Round1 +
                           Alloc_HR_Round2 +
-                          Alloc_HR_Round3 
+                          Alloc_HR_Round3 +
+                          Information_anticipation 
                         
                         , data = Survey_Dummy_Variables_Rowan_Simple_V1) 
 ```
@@ -801,11 +838,9 @@ I think that a linear regression will do the job!
 Linearmod_Diff_Round1to2 <- lm(formula = Alloc_diff_Round1to2 ~ 
                           Age_grouped +
                           Geographic_group +
-                          Duration +
+                          Duration_in_minutes_capped +
                           Gender + 
-                          Employed_Dummy + 
-                          Student_Dummy + 
-                          Retired_Dummy + 
+                          Employment_status +
                           University_Research_Dummy +
                           Environmental_Protection_Agency_Dummy +
                           Wildlife_Conservation_Dummy +
@@ -816,24 +851,23 @@ Linearmod_Diff_Round1to2 <- lm(formula = Alloc_diff_Round1to2 ~
                           Volunteering_Exp_Dummy +
                           Confidence_in_survey +
                           Char_conservation_interest +
-                          # No_Papers_Dummy +  Removed as in total collinearity with Many papers dummy
-                          Some_Papers_Dummy +
-                          Many_Papers_Dummy +
+                          Publications_read +
                           Scale_Sufficently_Protected_First +
                           Scale_Sufficently_Protected_Second +
                           Group +
                           TrueFalseScore +
-                          Money_Switch +
                           Money_CRRA +
-                          Pop_Switch +
                           Pop_CRRA + 
                           Alloc_HR_Round3 +
+                          Information_anticipation +
                           Alloc_profile_AllRounds 
                         
                         , data = Survey_Dummy_Variables_Rowan_Simple_V1,
                         singular.ok = F) 
 ```
-  
+
+### a) Multi-collinearity ?
+
 ```{r}
 alias( Linearmod_Diff_Round1to2 )
 
@@ -851,13 +885,11 @@ We do the same with Round 2 to 3.
 
 ```{r}
 Linearmod_Diff_Round2to3 <- lm(formula = Alloc_diff_Round2to3 ~ 
-                          Age_grouped + 
-                          Geographic_group + 
-                          Duration + 
+                          Age_grouped +
+                          Geographic_group +
+                          Duration_in_minutes_capped +
                           Gender + 
-                          Employed_Dummy + 
-                          Student_Dummy + 
-                          Retired_Dummy + 
+                          Employment_status +
                           University_Research_Dummy +
                           Environmental_Protection_Agency_Dummy +
                           Wildlife_Conservation_Dummy +
@@ -868,21 +900,24 @@ Linearmod_Diff_Round2to3 <- lm(formula = Alloc_diff_Round2to3 ~
                           Volunteering_Exp_Dummy +
                           Confidence_in_survey +
                           Char_conservation_interest +
-                          # No_Papers_Dummy +  Removed as in total collinearity with Many papers dummy
-                          Some_Papers_Dummy +
-                          Many_Papers_Dummy +
+                          Publications_read +
                           Scale_Sufficently_Protected_First +
                           Scale_Sufficently_Protected_Second +
                           Group +
                           TrueFalseScore +
-                          Money_Switch +
                           Money_CRRA +
-                          Pop_Switch +
                           Pop_CRRA + 
                           Alloc_HR_Round1 +
+                          Information_anticipation +
                           Alloc_profile_AllRounds 
                         
                         , data = as.data.frame(Survey_Dummy_Variables_Rowan_Simple_V1)) 
+```
+  
+```{r}
+alias( Linearmod_Diff_Round2to3 )
+
+car::vif(Linearmod_Diff_Round2to3)
 ```
   
 ```{r}
@@ -892,16 +927,15 @@ summary(Linearmod_Diff_Round2to3)
 ## VII) Model CRRA populations
 
 We do the same with the CRRA with populations to detect issues. 
+Removed the Pop and Money switches to avoid collinearity
 
 ```{r}
 Linearmod_Pop_CRRA <- lm(formula = Pop_CRRA ~ 
                           Age_grouped + 
                           Geographic_group + 
-                          Duration + 
+                          Duration_in_minutes_capped + 
                           Gender + 
-                          Employed_Dummy + 
-                          Student_Dummy + 
-                          Retired_Dummy + 
+                          Employment_status +
                           University_Research_Dummy +
                           Environmental_Protection_Agency_Dummy +
                           Wildlife_Conservation_Dummy +
@@ -912,16 +946,13 @@ Linearmod_Pop_CRRA <- lm(formula = Pop_CRRA ~
                           Volunteering_Exp_Dummy +
                           Confidence_in_survey +
                           Char_conservation_interest +
-                          # No_Papers_Dummy +  Removed as in total collinearity with Many papers dummy
-                          Some_Papers_Dummy +
-                          Many_Papers_Dummy +
+                          Publications_read +
                           Scale_Sufficently_Protected_First +
                           Scale_Sufficently_Protected_Second +
                           Group +
                           TrueFalseScore +
-                          Money_Switch +
                           Money_CRRA +
-                          Pop_Switch 
+                          Information_anticipation 
                         
                         , data = as.data.frame(Survey_Dummy_Variables_Rowan_Simple_V1)) 
 ```
@@ -938,11 +969,9 @@ We do the same with the CRRA with populations to detect issues.
 Linearmod_NoMoney_Pop_CRRA <- lm(formula = Pop_CRRA ~ 
                           Age_grouped + 
                           Geographic_group + 
-                          Duration + 
+                          Duration_in_minutes_capped + 
                           Gender + 
-                          Employed_Dummy + 
-                          Student_Dummy + 
-                          Retired_Dummy + 
+                          Employment_status +
                           University_Research_Dummy +
                           Environmental_Protection_Agency_Dummy +
                           Wildlife_Conservation_Dummy +
@@ -953,13 +982,12 @@ Linearmod_NoMoney_Pop_CRRA <- lm(formula = Pop_CRRA ~
                           Volunteering_Exp_Dummy +
                           Confidence_in_survey +
                           Char_conservation_interest +
-                          # No_Papers_Dummy +  Removed as in total collinearity with Many papers dummy
-                          Some_Papers_Dummy +
-                          Many_Papers_Dummy +
+                          Publications_read +
                           Scale_Sufficently_Protected_First +
                           Scale_Sufficently_Protected_Second +
                           Group +
-                          TrueFalseScore 
+                          TrueFalseScore +
+                          Information_anticipation 
                         
                         , data = as.data.frame(Survey_Dummy_Variables_Rowan_Simple_V1)) 
 ```
@@ -971,6 +999,13 @@ ggplot(Survey_Dummy_Variables_Rowan_Simple_V1) +
  geom_histogram(bins = 30L, fill = "#112446") +
  theme_minimal()
 ```
+Check multicollinearity 
+```{r}
+alias( Linearmod_NoMoney_Pop_CRRA )
+
+car::vif(Linearmod_NoMoney_Pop_CRRA)
+```
+
 
   
 ```{r}
@@ -978,14 +1013,15 @@ summary(Linearmod_NoMoney_Pop_CRRA)
 ```
 ## IX) Normalise data and create new model with integrated difference in risk aversions. 
 
-The idea is to combine our CRRA and Aloocation variables in order to see if they give more information within a regression model. 
-Let's try to see how we can combine these things in a meaningful way.
+The idea is to combine our CRRA and Allocation variables in order to see if they give more information within a regression model. Let's try to see how we can combine these things in a meaningful way.
 
-The objective is to normalise the CRRA values to include them into a regression.
+The objective is to normalize the CRRA values to include them into a regression.
 
 ```{r}
 Survey_Dummy_Variables_Rowan_Simple_V2 <- Survey_Dummy_Variables_Rowan_Simple_V1 %>% 
-  mutate(., Hybrid_CRRA_Alloc = Pop_CRRA * Alloc_HR_Round2)
+  mutate(., CRRA_diff = abs(Pop_CRRA - Money_CRRA)) %>% 
+  mutate(., Hybrid_CRRA_Alloc = Pop_CRRA * CRRA_diff) %>% 
+  select(., c(Money_CRRA, Pop_CRRA, CRRA_diff,  Hybrid_CRRA_Alloc))
 ```
 
 ```{r}
@@ -1020,12 +1056,12 @@ Lists of stats I'd want to know / plot:
 - Taxonomy : Just %. 
 - TrueFalse Score : Average, min max. 
 
-Things I'd like to test : 
+Things I'd like to test (in EXTRA MODELS) : 
 - Do a model for duration to see if some were faster/slower. 
 - Do a model for confidence in survey to understand who didn't trust it. 
 - Do a model for char interest to see who love the char!
 - Do a model for Anticipation of info to see what profiles anticipated. 
-- Do a model for trueFalse Score to see who they are. 
+- Do a model for trueFalse Score to see who they are.
 
 Also: 
 - Show Pop and Money switches and CRRA into a table like in papers. 
@@ -1037,22 +1073,14 @@ Also:
 
 Average, min, max duration. Plot frequency 
 ```{r}
-summary(Survey_Dummy_Variables_Rowan_Simple_V1$Duration)
-
-Duration_in_minutes <- Survey_Dummy_Variables_Rowan_Simple_V1$Duration/60
-summary(Duration_in_minutes)
+summary(Survey_Dummy_Variables_Rowan_Simple_V1$Duration_in_minutes_capped)
 ```
 Fuck one guy probably left the tab open and never closes her/his computer haha
 
 ```{r}
-library(dplyr)
-library(ggplot2)
-
-
 Survey_Dummy_Variables_Rowan_Simple_V1 %>%
- filter(Duration_in_minutes >= 4 & Duration_in_minutes <= 100) %>%
  ggplot() +
- aes(x = Duration_in_minutes) +
+ aes(x = Duration_in_minutes_capped) +
  geom_histogram(bins = 30L, fill = "#2A4A82") +
  labs(x = "Time for completion of survey (mn)", y = "Count", title = "Distribution of completion times for the online survey", 
  subtitle = "Outlier values (i.e > 100mn) were excluded (Open tabs)") +
@@ -1062,8 +1090,6 @@ Survey_Dummy_Variables_Rowan_Simple_V1 %>%
 
 ```{r}
 table(Survey_Dummy_Variables_Rowan_Simple_V1$Gender)
-
-library(ggplot2)
 
 ggplot(Survey_Dummy_Variables_Rowan_Simple_V1) +
  aes(x = Geographic_group, fill = Gender) +
@@ -1529,25 +1555,260 @@ Susbet_Char_conservation_interest <- Survey_Dummy_Variables_Rowan_Simple_V1 %>%
     filter(., Char_conservation_interest < 7)
 t.test(Susbet_Char_conservation_interest$Scale_Sufficently_Protected_First, Susbet_Char_conservation_interest$Scale_Sufficently_Protected_Second, alternative = "less" )
 ```
+
+
+
 ## II) Extra models 
 
 
+Things I'd like to test (in EXTRA MODELS) : 
+- Do a model for duration to see if some were faster/slower. 
+- Do a model for confidence in survey to understand who didn't trust it. 
+- Do a model for char interest to see who love the char!
+- Do a model for Anticipation of info to see what profiles anticipated. 
+- Do a model for trueFalse Score to see who they are.
+
+### a) Duration model 
+
+```{r}
+Duration_model <- lm(formula = Duration_in_minutes_capped ~ 
+                          Age_grouped + 
+                          Geographic_group + 
+                          Gender + 
+                          Employment_status +
+                          University_Research_Dummy +
+                          Environmental_Protection_Agency_Dummy +
+                          Wildlife_Conservation_Dummy +
+                          Undergrad_Dummy + 
+                          Postgrad_Dummy +
+                          Work_Exp_Dummy +
+                          Study_Exp_Dummy +
+                          Volunteering_Exp_Dummy +
+                          Confidence_in_survey +
+                          Char_conservation_interest +
+                          Publications_read +
+                          Scale_Sufficently_Protected_First +
+                          Scale_Sufficently_Protected_Second +
+                          Group +
+                          TrueFalseScore +
+                          Money_CRRA +
+                          Pop_CRRA + 
+                          Alloc_HR_Round1 +
+                          Alloc_HR_Round2 +
+                          Alloc_HR_Round3 +
+                          Information_anticipation +
+                          Alloc_profile_AllRounds 
+                        
+                        , data = Survey_Dummy_Variables_Rowan_Simple_V1) 
+```
+
+```{r}
+alias( Duration_model )
+
+car::vif(Duration_model)
+```
+  
+  
+```{r}
+summary(Duration_model)
+```
+### b) Confidence in survey model 
+
+```{r}
+Confidence_model <- lm(formula = Confidence_in_survey ~ 
+                          Age_grouped + 
+                          Geographic_group + 
+                          Duration_in_minutes_capped + 
+                          Gender + 
+                          Employment_status +
+                          University_Research_Dummy +
+                          Environmental_Protection_Agency_Dummy +
+                          Wildlife_Conservation_Dummy +
+                          Undergrad_Dummy + 
+                          Postgrad_Dummy +
+                          Work_Exp_Dummy +
+                          Study_Exp_Dummy +
+                          Volunteering_Exp_Dummy +
+                          Char_conservation_interest +
+                          Publications_read +
+                          Scale_Sufficently_Protected_First +
+                          Scale_Sufficently_Protected_Second +
+                          Group +
+                          TrueFalseScore +
+                          Money_CRRA +
+                          Pop_CRRA + 
+                          Alloc_HR_Round1 +
+                          Alloc_HR_Round2 +
+                          Alloc_HR_Round3 +
+                          Information_anticipation +
+                          Alloc_profile_AllRounds 
+                        
+                        , data = Survey_Dummy_Variables_Rowan_Simple_V1) 
+```
+
+```{r}
+alias( Confidence_model )
+
+car::vif(Confidence_model)
+```
+  
+  
+```{r}
+summary(Confidence_model)
+```
+Very interesting ! 
+Old and medium-age people tend to have less confidence, 
+while people who have read papers have more confidence ! 
+The gretaest effect is for unemployed people, who trust the survey big time. 
+
+Surprisingly, experience in conservation did not have an effect on that model ... ???
 
 
+### c) Char interest model 
+
+```{r}
+CharInterest_model <- lm(formula = Char_conservation_interest ~ 
+                          Age_grouped + 
+                          Geographic_group + 
+                          Duration_in_minutes_capped + 
+                          Gender + 
+                          Employment_status +
+                          University_Research_Dummy +
+                          Environmental_Protection_Agency_Dummy +
+                          Wildlife_Conservation_Dummy +
+                          Undergrad_Dummy + 
+                          Postgrad_Dummy +
+                          Work_Exp_Dummy +
+                          Study_Exp_Dummy +
+                          Volunteering_Exp_Dummy +
+                          Confidence_in_survey  +
+                          Publications_read +
+                          Scale_Sufficently_Protected_First +
+                          Scale_Sufficently_Protected_Second +
+                          Group +
+                          TrueFalseScore +
+                          Money_CRRA +
+                          Pop_CRRA + 
+                          Alloc_HR_Round1 +
+                          Alloc_HR_Round2 +
+                          Alloc_HR_Round3 +
+                          Information_anticipation +
+                          Alloc_profile_AllRounds 
+                        
+                        , data = Survey_Dummy_Variables_Rowan_Simple_V1) 
+```
+
+```{r}
+alias( CharInterest_model )
+
+car::vif(CharInterest_model)
+```
+  
+  
+```{r}
+summary(CharInterest_model)
+```
+That line is interesting potentially : 
+
+Alloc_profile_AllRoundsSame-Up        -3.997681   1.638621  -2.440   0.0180 *  
+
+That would mean that people who did not react to the information and then allocated more to the HR did not believe in char in the first place . 
+Well it's not that interesting but we could work on that. 
 
 
+### d) Anticipation model 
+
+I NEED A LOGISTIC REGRESSION FOR THAT ! 
+
+```{r}
+Anticipation_model <- lm(formula = Information_anticipation  ~ 
+                          Age_grouped + 
+                          Geographic_group + 
+                          Duration_in_minutes_capped + 
+                          Gender + 
+                          Employment_status +
+                          University_Research_Dummy +
+                          Environmental_Protection_Agency_Dummy +
+                          Wildlife_Conservation_Dummy +
+                          Undergrad_Dummy + 
+                          Postgrad_Dummy +
+                          Work_Exp_Dummy +
+                          Study_Exp_Dummy +
+                          Volunteering_Exp_Dummy +
+                          Confidence_in_survey  +
+                          Publications_read +
+                          Char_conservation_interest +
+                          Scale_Sufficently_Protected_First +
+                          Scale_Sufficently_Protected_Second +
+                          Group +
+                          TrueFalseScore +
+                          Money_CRRA +
+                          Pop_CRRA + 
+                          Alloc_HR_Round1 +
+                          Alloc_HR_Round2 +
+                          Alloc_HR_Round3 +
+                          Alloc_profile_AllRounds 
+                        
+                        , data = Survey_Dummy_Variables_Rowan_Simple_V1) 
+```
+
+```{r}
+alias( Anticipation_model )
+
+car::vif(Anticipation_model)
+```
+  
+  
+```{r}
+summary(Anticipation_model)
+```
 
 
+### e) True or False model 
 
+```{r}
+TrueFalseScore_model <- lm(formula = TrueFalseScore  ~ 
+                          Age_grouped + 
+                          Geographic_group + 
+                          Duration_in_minutes_capped + 
+                          Gender + 
+                          Employment_status +
+                          University_Research_Dummy +
+                          Environmental_Protection_Agency_Dummy +
+                          Wildlife_Conservation_Dummy +
+                          Undergrad_Dummy + 
+                          Postgrad_Dummy +
+                          Work_Exp_Dummy +
+                          Study_Exp_Dummy +
+                          Volunteering_Exp_Dummy +
+                          Confidence_in_survey  +
+                          Publications_read +
+                          Scale_Sufficently_Protected_First +
+                          Scale_Sufficently_Protected_Second +
+                          Group +
+                          Char_conservation_interest +
+                          Money_CRRA +
+                          Pop_CRRA + 
+                          Alloc_HR_Round1 +
+                          Alloc_HR_Round2 +
+                          Alloc_HR_Round3 +
+                          Information_anticipation +
+                          Alloc_profile_AllRounds 
+                        
+                        , data = Survey_Dummy_Variables_Rowan_Simple_V1) 
+```
 
+```{r}
+alias( TrueFalseScore_model )
 
+car::vif(TrueFalseScore_model)
+```
 
-
-
-
-
-
-
+```{r}
+summary(TrueFalseScore_model)
+```
+Ok, always good to confirm that people who have read many papers also had a better score at the true or false :) 
+Our experts are not so bad haha 
 
 
 
