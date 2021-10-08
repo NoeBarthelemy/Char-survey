@@ -18,7 +18,6 @@ library(nnet)
 ```
 
 This is empty but I needed a script to try the sharing process with Rowan.
-
 ```{r}
 Survey_Dummy_Variables_Rowan_V1_NB_edits <- read_excel("~/Bureau/PHD/Ongoing_Projects/Economics/DATA_SURVEY/Survey Dummy Variables_Rowan_V1_SEP2021.xlsx")
 
@@ -118,6 +117,12 @@ Do we want to in the first place ?
 ABOUT NA'S in regression models: 
 https://bookdown.org/egarpor/PM-UC3M/app-nas.html 
 
+How to chose the right model : 
+https://www.princeton.edu/~otorres/LogitR101.pdf 
+
+Ordered probit models: 
+https://cran.r-project.org/web/packages/oglmx/vignettes/oglmxVignette.pdf 
+
 To get familiar with models and stuff :
 https://www.econometrics-with-r.org/4-1-simple-linear-regression.html 
 
@@ -209,6 +214,7 @@ Survey_Dummy_Variables_Rowan_V6 <- Survey_Dummy_Variables_Rowan_V5 %>%
   mutate(., University_Research_Dummy = if_else(condition = Position1 == "University (public) research" | Position2 == "University (public) research" | Position3 == "University (public) research", true = 1, false = 0, missing = 0)) %>%  
   mutate(., Environmental_Protection_Agency_Dummy = if_else(condition = Position1 == "Environmental protection agency" | Position2 == "Environmental protection agency" | Position3 == "Environmental protection agency", true = 1, false = 0, missing = 0)) %>%  
   mutate(., Wildlife_Conservation_Dummy = if_else(condition = Position1 == "Wildlife conservation/management agency" | Position2 == "Wildlife conservation/management agency" | Position3 == "Wildlife conservation/management agency", true = 1, false = 0, missing = 0)) %>% 
+  mutate(., Other_position_Dummy = ifelse( University_Research_Dummy == 0 & Environmental_Protection_Agency_Dummy == 0 & Wildlife_Conservation_Dummy == 0, 1, 0 )) %>% 
   # It did the job, let's filter out those useless columns: 
   select(., -c("Position1", "Position2","Position3"))
   
@@ -306,39 +312,57 @@ Survey_Dummy_Variables_Rowan_V9 <- Survey_Dummy_Variables_Rowan_V8 %>%
 
 Basically, when are they switching from B to A ?
 
-	CRRA
-1	0.98
-2	0.84
-3	0.67
-4	0.48
-5	0.26
-6	0
-7	-0.33
-8	-0.74
-9	-1.33
-10	inf  
+For the lines below we use that scale:
 
-Less than 0 is risk loving 	
-0 is risk neutral 	
-More than 0 is risk averse	
+0.98	Highly risk averse
+	
+0.84	Very risk averse
+	
+0.67	Risk averse
+	
+0.48	Risk averse
+	
+0.26	Slightly risk averse
+	
+0	Risk neutral
+	
+-0.33	Risk loving
+	
+-0.74	Very risk loving
+	
+-1.33	Highly risk loving
+	
+inf	Highly risk loving
 
-### I) For the money lottery
+### I) Money CRRA
 ```{r}
 Survey_Dummy_Variables_Rowan_V10 <- Survey_Dummy_Variables_Rowan_V9 %>% 
   mutate(., Money_Switch = ifelse(Risk_lottery_money_99 == "Option A", "99", ifelse(Risk_lottery_money_90 == "Option A", "90", ifelse(Risk_lottery_money_80 == "Option A", "80",ifelse(Risk_lottery_money_70 == "Option A", "70", ifelse(Risk_lottery_money_60 == "Option A", "60", ifelse(Risk_lottery_money_50 == "Option A", "50", ifelse(Risk_lottery_money_40 == "Option A", "40", ifelse(Risk_lottery_money_30 == "Option A", "30", ifelse(Risk_lottery_money_30 == "Option A", "30", ifelse(Risk_lottery_money_20 == "Option A", "20", ifelse(Risk_lottery_money_10 == "Option A", "10", "0"))) )))) ) )) )) %>% 
   
   # Get the CRRA into the code 
-  mutate(., Money_CRRA = ifelse(Money_Switch == "99", 0.98, ifelse(Money_Switch == "90", 0.84, ifelse(Money_Switch == "80", 0.67, ifelse(Money_Switch == "70", 0.48, ifelse(Money_Switch == "60", 0.26, ifelse(Money_Switch == "50", 0, ifelse(Money_Switch == "40", -0.33, ifelse(Money_Switch == "30", -0.74, ifelse(Money_Switch == "20", -1.33, ifelse(Money_Switch == "10", -2, no = -2.5) )) ) )))))))
+  mutate(., Money_CRRA = ifelse(Money_Switch == "99", 0.98, ifelse(Money_Switch == "90", 0.84, ifelse(Money_Switch == "80", 0.67, ifelse(Money_Switch == "70", 0.48, ifelse(Money_Switch == "60", 0.26, ifelse(Money_Switch == "50", 0, ifelse(Money_Switch == "40", -0.33, ifelse(Money_Switch == "30", -0.74, ifelse(Money_Switch == "20", -1.33, ifelse(Money_Switch == "10", -2, no = -2.5) )) ) ))))))) %>% 
+  
+  
+  # Create a Risk-attitude variable 
+  # Based on the CRRA values we attribute some risk attitudes. We may have to change the thresholds later !
+  mutate(., Money_RiskAttitude = ifelse(Money_CRRA == 0.98, "Highly risk averse", ifelse(Money_CRRA == 0.84, "Very risk averse", ifelse(Money_CRRA == 0.67, "Risk averse", ifelse(Money_CRRA == 0.48, "Risk averse", ifelse(Money_CRRA == 0.26, "Slightly risk averse", ifelse(Money_CRRA == 0, "Risk neutral", ifelse(Money_CRRA == -0.33, "Risk loving", ifelse(Money_CRRA == -0.74, "Very risk loving", ifelse(Money_CRRA == -1.33, "Highly risk loving", ifelse(Money_CRRA < -1.33 , "Highly risk loving", "Problem")))))))))) )
 ```
 
-### II) For the population lottery
+### II) Population CRRA
 ```{r}
 Survey_Dummy_Variables_Rowan_V11 <- Survey_Dummy_Variables_Rowan_V10 %>% 
   mutate(., Pop_Switch = ifelse(Risk_lottery_populations_99 == "Option A", "99", ifelse(Risk_lottery_populations_90 == "Option A", "90", ifelse(Risk_lottery_populations_80 == "Option A", "80",ifelse(Risk_lottery_populations_70 == "Option A", "70", ifelse(Risk_lottery_populations_60 == "Option A", "60", ifelse(Risk_lottery_populations_50 == "Option A", "50", ifelse(Risk_lottery_populations_40 == "Option A", "40", ifelse(Risk_lottery_populations_30 == "Option A", "30", ifelse(Risk_lottery_populations_30 == "Option A", "30", ifelse(Risk_lottery_populations_20 == "Option A", "20", ifelse(Risk_lottery_populations_10 == "Option A", "10", "0"))) )))) ) )) )) %>% 
   
   # Get the CRRA into the code 
-  mutate(., Pop_CRRA = ifelse(Pop_Switch == "99", 0.98, ifelse(Pop_Switch == "90", 0.84, ifelse(Pop_Switch == "80", 0.67, ifelse(Pop_Switch == "70", 0.48, ifelse(Pop_Switch == "60", 0.26, ifelse(Pop_Switch == "50", 0, ifelse(Pop_Switch == "40", -0.33, ifelse(Pop_Switch == "30", -0.74, ifelse(Pop_Switch == "20", -1.33, ifelse(Pop_Switch == "10", -2, no = -2.5) )) ) )))))))
+  mutate(., Pop_CRRA = ifelse(Pop_Switch == "99", 0.98, ifelse(Pop_Switch == "90", 0.84, ifelse(Pop_Switch == "80", 0.67, ifelse(Pop_Switch == "70", 0.48, ifelse(Pop_Switch == "60", 0.26, ifelse(Pop_Switch == "50", 0, ifelse(Pop_Switch == "40", -0.33, ifelse(Pop_Switch == "30", -0.74, ifelse(Pop_Switch == "20", -1.33, ifelse(Pop_Switch == "10", -2, no = -2.5) )) ) ))))))) %>% 
+  
+  
+  # Create a Risk-attitude variable 
+  # Based on the CRRA values we attribute some risk attitudes. We may have to change the thresholds later !
+  mutate(., Pop_RiskAttitude = ifelse(Pop_CRRA == 0.98, "Highly risk averse", ifelse(Pop_CRRA == 0.84, "Very risk averse", ifelse(Pop_CRRA == 0.67, "Risk averse", ifelse(Pop_CRRA == 0.48, "Risk averse", ifelse(Pop_CRRA == 0.26, "Slightly risk averse", ifelse(Pop_CRRA == 0, "Risk neutral", ifelse(Pop_CRRA == -0.33, "Risk loving", ifelse(Pop_CRRA == -0.74, "Very risk loving", ifelse(Pop_CRRA == -1.33, "Highly risk loving", ifelse(Pop_CRRA < -1.33 , "Highly risk loving", "Problem")))))))))) )
 ```
+
+
 
 ## I) Sort the allocation budget variables
 
@@ -471,10 +495,6 @@ No actually it is better to put NA instead !!
 Survey_Dummy_Variables_Rowan_V14.5 <- Survey_Dummy_Variables_Rowan_V14 %>% 
   mutate(., Duration_in_minutes_capped = ifelse(Duration_in_minutes > 50, NA, Duration_in_minutes)) 
 ```
-
-
-
-
 
 
 ## L) Create a numeric version of papers read
@@ -1028,6 +1048,67 @@ Survey_Dummy_Variables_Rowan_Simple_V2 <- Survey_Dummy_Variables_Rowan_Simple_V1
 esquisser(Survey_Dummy_Variables_Rowan_Simple_V2)
 ```
 
+## X) Ordered probit models 
+
+Maybe take a look at ordered probit models, they could be what you need:
+https://en.wikipedia.org/wiki/Ordered_probit 
+
+In statistics, ordered probit is a generalization of the widely used probit analysis to the case of more than two outcomes of an ordinal dependent variable (a dependent variable for which the potential values have a natural ordering, as in poor, fair, good, excellent). 
+Ordered probit, like ordered logit, is a particular method of ordinal regression.
+
+Another example application are Likert-type items commonly employed in survey research, where respondents rate their agreement on an ordered scale (e.g., "Strongly disagree" to "Strongly agree"). The ordered probit model provides an appropriate fit to these data, preserving the ordering of response options while making no assumptions of the interval distances between options.
+
+The model cannot be consistently estimated using ordinary least squares; it is usually estimated using maximum likelihood. 
+
+### a) Probit Money Risk attitude
+```{r}
+library("oglmx")
+
+OP_Money_RiskAttitudes <- oprobit.reg(Money_CRRA ~ 
+                          Age_grouped +
+                          Geographic_group +
+                          Duration_in_minutes_capped +
+                          Gender + 
+                          Employment_status +
+                          University_Research_Dummy +
+                          Environmental_Protection_Agency_Dummy +
+                          Wildlife_Conservation_Dummy +
+                          Undergrad_Dummy + 
+                          Postgrad_Dummy +
+                          Work_Exp_Dummy +
+                          Study_Exp_Dummy +
+                          Volunteering_Exp_Dummy +
+                          Confidence_in_survey +
+                          Char_conservation_interest +
+                          Publications_read +
+                          Scale_Sufficently_Protected_First +
+                          Scale_Sufficently_Protected_Second +
+                          Group +
+                          TrueFalseScore +
+                     #     Pop_CRRA +        # Probably too influential on this model
+                          Alloc_diff_Round1to2 +
+                          Alloc_diff_Round2to3 + 
+                          Information_anticipation +
+                          Alloc_profile_AllRounds 
+                        
+                           , data = as.data.frame(Survey_Dummy_Variables_Rowan_Simple_V1))
+```
+
+  
+```{r}
+summary(OP_Money_RiskAttitudes)
+```
+
+The Pr(>|z|) column shows the two-tailed p-values testing the null hypothesis that the 
+coefficient is equal to zero (i.e. no significant effect). The usual value is 0.05, by this 
+measure none of the coefficients have a significant effect on the log-odds ratio of the 
+dependent variable. 
+
+The z value also tests the null that the coefficient is equal to zero. For a 5% 
+significance, the z-value should fall outside the ±1.96. 
+
+The Estimate column shows the coefficients in log-odds form. What you get from this 
+column is whether the effect of the predictors is positive or negative. 
 
 
 # 4) Various plots and statistics
@@ -1076,7 +1157,6 @@ Average, min, max duration. Plot frequency
 summary(Survey_Dummy_Variables_Rowan_Simple_V1$Duration_in_minutes_capped)
 ```
 Fuck one guy probably left the tab open and never closes her/his computer haha
-
 ```{r}
 Survey_Dummy_Variables_Rowan_Simple_V1 %>%
  ggplot() +
@@ -1097,43 +1177,92 @@ ggplot(Survey_Dummy_Variables_Rowan_Simple_V1) +
  scale_fill_hue(direction = 1) +
  theme_minimal()
 ```
+Percentages for each geographic group
+```{r}
+Gender_and_location <- Survey_Dummy_Variables_Rowan_V4 %>%  # We take V4 since it keeps the "Prefer not to say".
+  select(., Gender, Geographic_group) %>% 
+  filter(., !is.na(Gender)) %>% 
+  filter(., !is.na(Geographic_group)) 
+
+NumMales <- sum(Gender_and_location$Gender == "Male")
+NumFemales <- sum(Gender_and_location$Gender == "Female")
+NumNonBinary <- sum(Gender_and_location$Gender == "Non-binary")
+NumGenderNeutral <- sum(Gender_and_location$Gender == "Gender neutral")
+NumPrefNot2 <- sum(Gender_and_location$Gender == "Prefer not to say")
+
+NumTotalGenders <- nrow(Gender_and_location)
+```
+
+Now do the maths
+```{r}
+paste(NumMales/NumTotalGenders *100,"% of males")
+paste(NumFemales / NumTotalGenders *100,"% of females")
+paste(NumNonBinary / NumTotalGenders *100, "% of non binary")
+paste(NumGenderNeutral / NumTotalGenders *100, "% of gender-neutral")
+paste(NumPrefNot2 / NumTotalGenders *100, "% of people who prefer not to say")
+```
+
+
 ### c) Employed vs Student vs Retired. 
 
 Numbers simply.
 ```{r}
-# Percentage of Employed people: 
-(sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Employed_Dummy==1)) / nrow(Survey_Dummy_Variables_Rowan_Simple_V1) *100)
+Employement_df <- Survey_Dummy_Variables_Rowan_Simple_V1 %>% 
+  select(., Employment_status, Geographic_group) %>% 
+  filter(., !is.na(Employment_status)) %>% 
+  filter(., !is.na(Geographic_group)) %>% 
+  filter(., !Geographic_group == "WhereIsThat?") 
 
-# Percentage of Student people: 
-(sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Student_Dummy==1)) / nrow(Survey_Dummy_Variables_Rowan_Simple_V1) *100)
+Total_nrow_Employement_df <- nrow(Employement_df)
 
-# Percentage of Retired people: 
-(sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Retired_Dummy==1)) / nrow(Survey_Dummy_Variables_Rowan_Simple_V1) *100)
+paste((sum(with(Employement_df, Employment_status == "Employed")) / Total_nrow_Employement_df *100),"% of employed people")
+paste((sum(with(Employement_df, Employment_status == "Unemployed")) / Total_nrow_Employement_df *100),"% of unemployed people")
+paste((sum(with(Employement_df, Employment_status == "Student")) / Total_nrow_Employement_df *100),"% of students")
+paste((sum(with(Employement_df, Employment_status == "Retired")) / Total_nrow_Employement_df *100),"% of retired people")
 ```
+In North Atlantic Islands 
+```{r}
+North_Atlantic_Isles_nrow = sum(with(Employement_df, Geographic_group == "North_Atlantic_Isles"))
+
+paste((sum(with(Employement_df, Employment_status == "Employed" & Geographic_group == "North_Atlantic_Isles")) / North_Atlantic_Isles_nrow *100),"% of employed people in the North_Atlantic_Isles")
+paste((sum(with(Employement_df, Employment_status == "Unemployed" & Geographic_group == "North_Atlantic_Isles")) / North_Atlantic_Isles_nrow *100),"% of unemployed people in the North_Atlantic_Isles")
+paste((sum(with(Employement_df, Employment_status == "Student" & Geographic_group == "North_Atlantic_Isles")) / North_Atlantic_Isles_nrow *100),"% of students in the North_Atlantic_Isles")
+paste((sum(with(Employement_df, Employment_status == "Retired" & Geographic_group == "North_Atlantic_Isles")) / North_Atlantic_Isles_nrow *100),"% of retired people in the North_Atlantic_Isles")
+```
+
+
+
 ### d) Position 
 
 ##### - General sample
+
 ```{r}
-# Percentage of Public research people: 
-(sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, University_Research_Dummy==1)) / nrow(Survey_Dummy_Variables_Rowan_Simple_V1) *100)
+Position_df <- Survey_Dummy_Variables_Rowan_Simple_V1 %>% 
+  select(., University_Research_Dummy, Environmental_Protection_Agency_Dummy, Wildlife_Conservation_Dummy, Other_position_Dummy, Geographic_group) %>% 
+  filter(., !is.na(Geographic_group)) %>% 
+  filter(., !Geographic_group == "WhereIsThat?") %>% 
+  rowwise( ) %>% 
+  mutate(., Multitaskers = sum(University_Research_Dummy, Environmental_Protection_Agency_Dummy, Wildlife_Conservation_Dummy, Other_position_Dummy)) 
 
-# Percentage of EPA people: 
-(sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Environmental_Protection_Agency_Dummy ==1)) / nrow(Survey_Dummy_Variables_Rowan_Simple_V1) *100)
-
-# Percentage of IFI and co people: 
-(sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Wildlife_Conservation_Dummy ==1)) / nrow(Survey_Dummy_Variables_Rowan_Simple_V1) *100)
+Total_nrow_Position_df <- nrow(Position_df)
 ```
-##### - North America sample
+
 ```{r}
-# Percentage of Public research people: 
-(sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, University_Research_Dummy==1 & Geographic_group == "North_America")) / sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Geographic_group == "North_America")) *100)
+paste((sum(with(Position_df, University_Research_Dummy == 1)) / Total_nrow_Position_df *100),"% of University people")
+paste((sum(with(Position_df, Environmental_Protection_Agency_Dummy == 1)) / Total_nrow_Position_df *100),"% of EPA people")
+paste((sum(with(Position_df, Wildlife_Conservation_Dummy == 1)) / Total_nrow_Position_df *100),"% of IFI-like people")
+paste((sum(with(Position_df, Other_position_Dummy == 1)) / Total_nrow_Position_df *100),"% of other positions")
+```
 
-# Percentage of EPA people: 
-(sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Environmental_Protection_Agency_Dummy==1 & Geographic_group == "North_America")) / sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Geographic_group == "North_America")) *100)
+##### - North America sample
 
-# Percentage of IFI and co people: 
-(sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Wildlife_Conservation_Dummy==1 & Geographic_group == "North_America")) / sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Geographic_group == "North_America")) *100)
+```{r}
+Amerikka_nrow_Position = sum(with(Employement_df, Geographic_group == "North_America"))
 
+paste((sum(with(Position_df, University_Research_Dummy == 1  & Geographic_group == "North_America")) / Amerikka_nrow_Position *100),"% of University people")
+paste((sum(with(Position_df, Environmental_Protection_Agency_Dummy == 1  & Geographic_group == "North_America")) / Amerikka_nrow_Position *100),"% of EPA people")
+paste((sum(with(Position_df, Wildlife_Conservation_Dummy == 1  & Geographic_group == "North_America")) / Amerikka_nrow_Position *100),"% of IFI-like people")
+paste((sum(with(Position_df, Other_position_Dummy == 1  & Geographic_group == "North_America")) / Amerikka_nrow_Position *100),"% of other positions")
 ```
 
 ##### - Atlantic islands sample
@@ -1819,12 +1948,76 @@ Our experts are not so bad haha
 
 
 
+# 5) Budget allocation figures 
 
 
+```{r}
+Risk_LR_Round1 = 0.2
+Risk_HR_Round1 = 0.7
+
+Budget_DF_Round1 <- data.frame(HR_Budg_Alloc =seq(0, 100, by=1), LR_Budg_Alloc = seq(100, 0, by=-1)) %>% 
+  mutate(., HR_Pops_saved = HR_Budg_Alloc *0.01*10) %>% 
+  mutate(., LR_Pops_saved = LR_Budg_Alloc *0.01*35) %>% 
+  mutate(., Pop_saved_Total = HR_Pops_saved + LR_Pops_saved) %>% 
+  mutate(., HR_Pops_Lost = ((10 - HR_Pops_saved) * Risk_HR_Round1)) %>% 
+  mutate(., LR_Pops_Lost = ((35 - LR_Pops_saved) * Risk_LR_Round1)) %>% 
+  mutate(., Pop_Lost_Total = HR_Pops_Lost + LR_Pops_Lost) %>% 
+  mutate(., Percentage_HR_PopsLost = (HR_Pops_Lost / 10) *100) %>% 
+  mutate(., Percentage_LR_PopsLost = (LR_Pops_Lost / 35) *100) 
+
+# The same for round two and three
+Risk_LR_Round2 = 0.4
+Risk_HR_Round2 = 0.8
+
+Budget_DF_Round2 <- data.frame(HR_Budg_Alloc =seq(0, 100, by=1), LR_Budg_Alloc = seq(100, 0, by=-1)) %>% 
+  mutate(., HR_Pops_saved = HR_Budg_Alloc *0.01*10) %>% 
+  mutate(., LR_Pops_saved = LR_Budg_Alloc *0.01*35) %>% 
+  mutate(., Pop_saved_Total = HR_Pops_saved + LR_Pops_saved) %>% 
+  mutate(., HR_Pops_Lost = ((10 - HR_Pops_saved) * Risk_HR_Round2)) %>% 
+  mutate(., LR_Pops_Lost = ((35 - LR_Pops_saved) * Risk_LR_Round2)) %>% 
+  mutate(., Pop_Lost_Total = HR_Pops_Lost + LR_Pops_Lost) %>% 
+  mutate(., Percentage_HR_PopsLost = (HR_Pops_Lost / 10) *100) %>% 
+  mutate(., Percentage_LR_PopsLost = (LR_Pops_Lost / 35) *100)  
+
+esquisser(Budget_DF_Round2)
+```
 
 
+## Figure Round 1
+```{r}
+ggplot(Budget_DF_Round1) +
+ aes(x = HR_Budg_Alloc, colour = Pop_Lost_Total) +
+ geom_point(aes(y= Percentage_HR_PopsLost), shape = 17, size = 1.5, show.legend = T) +
+ geom_point(aes(y= Percentage_LR_PopsLost), shape = 19, size = 1, show.legend = T) +
+ labs(x = "Budget allocation to the HR category") +
+  scale_y_continuous(
+    # Features of the first axis
+    name = "% of HR expected to go extinct (Triangles)",
+    # Add a second axis and specify its features
+    sec.axis = sec_axis(~.*coeff, name="% of LR expected to go extinct (Circles)" )
+  ) +
+   scale_color_viridis_c(option = "viridis", direction = 1) +
+ theme_minimal() + 
+ theme(legend.position="right")
+```
 
 
+## Figure Round 2 & 3
+```{r}
+ggplot(Budget_DF_Round2) +
+ aes(x = HR_Budg_Alloc, colour = Pop_Lost_Total) +
+ geom_point(aes(y= Percentage_HR_PopsLost), shape = 17, size = 1.5, show.legend = T) +
+ geom_point(aes(y= Percentage_LR_PopsLost), shape = 19, size = 1, show.legend = T) +
+ labs(x = "Budget allocation to the HR category") +
+  scale_y_continuous(
+    # Features of the first axis
+    name = "% of HR expected to go extinct (Triangles)",
+    # Add a second axis and specify its features
+    sec.axis = sec_axis(~.*coeff, name="% of LR expected to go extinct (Circles)" )
+  ) +
+   scale_color_viridis_c(option = "viridis", direction = 1) +
+ theme_minimal() 
+```
 
 
 
