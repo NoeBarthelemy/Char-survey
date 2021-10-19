@@ -110,6 +110,10 @@ How can we fit the allocation variables into the regression ?
 Do we want to in the first place ?
 
 
+Meeting with Rowan 15 OCtober 2021: 
+
+
+
 
 
 # Documentation
@@ -345,7 +349,10 @@ Survey_Dummy_Variables_Rowan_V10 <- Survey_Dummy_Variables_Rowan_V9 %>%
   
   # Create a Risk-attitude variable 
   # Based on the CRRA values we attribute some risk attitudes. We may have to change the thresholds later !
-  mutate(., Money_RiskAttitude = ifelse(Money_CRRA == 0.98, "Highly risk averse", ifelse(Money_CRRA == 0.84, "Very risk averse", ifelse(Money_CRRA == 0.67, "Risk averse", ifelse(Money_CRRA == 0.48, "Risk averse", ifelse(Money_CRRA == 0.26, "Slightly risk averse", ifelse(Money_CRRA == 0, "Risk neutral", ifelse(Money_CRRA == -0.33, "Risk loving", ifelse(Money_CRRA == -0.74, "Very risk loving", ifelse(Money_CRRA == -1.33, "Highly risk loving", ifelse(Money_CRRA < -1.33 , "Highly risk loving", "Problem")))))))))) )
+  mutate(., Money_RiskAttitude = ifelse(Money_CRRA == 0.98, "Highly risk averse", ifelse(Money_CRRA == 0.84, "Very risk averse", ifelse(Money_CRRA == 0.67, "Risk averse", ifelse(Money_CRRA == 0.48, "Risk averse", ifelse(Money_CRRA == 0.26, "Slightly risk averse", ifelse(Money_CRRA == 0, "Risk neutral", ifelse(Money_CRRA == -0.33, "Risk loving", ifelse(Money_CRRA == -0.74, "Very risk loving", ifelse(Money_CRRA == -1.33, "Highly risk loving", ifelse(Money_CRRA < -1.33 , "Highly risk loving", "Problem")))))))))) ) %>% 
+
+  # Create a second one that has all the risk loving people blended together:
+  mutate(., Blended_Money_RiskAttitude = ifelse(Money_CRRA == 0.98, "Highly risk averse", ifelse(Money_CRRA == 0.84, "Very risk averse", ifelse(Money_CRRA == 0.67, "Risk averse", ifelse(Money_CRRA == 0.48, "Risk averse", ifelse(Money_CRRA == 0.26, "Slightly risk averse", ifelse(Money_CRRA == 0, "Risk neutral", ifelse(Money_CRRA < 0, "Any Risk loving", "Problem"))))))))
 ```
 
 ### II) Population CRRA
@@ -359,7 +366,46 @@ Survey_Dummy_Variables_Rowan_V11 <- Survey_Dummy_Variables_Rowan_V10 %>%
   
   # Create a Risk-attitude variable 
   # Based on the CRRA values we attribute some risk attitudes. We may have to change the thresholds later !
-  mutate(., Pop_RiskAttitude = ifelse(Pop_CRRA == 0.98, "Highly risk averse", ifelse(Pop_CRRA == 0.84, "Very risk averse", ifelse(Pop_CRRA == 0.67, "Risk averse", ifelse(Pop_CRRA == 0.48, "Risk averse", ifelse(Pop_CRRA == 0.26, "Slightly risk averse", ifelse(Pop_CRRA == 0, "Risk neutral", ifelse(Pop_CRRA == -0.33, "Risk loving", ifelse(Pop_CRRA == -0.74, "Very risk loving", ifelse(Pop_CRRA == -1.33, "Highly risk loving", ifelse(Pop_CRRA < -1.33 , "Highly risk loving", "Problem")))))))))) )
+  mutate(., Pop_RiskAttitude = ifelse(Pop_CRRA == 0.98, "Highly risk averse", ifelse(Pop_CRRA == 0.84, "Very risk averse", ifelse(Pop_CRRA == 0.67, "Risk averse", ifelse(Pop_CRRA == 0.48, "Risk averse", ifelse(Pop_CRRA == 0.26, "Slightly risk averse", ifelse(Pop_CRRA == 0, "Risk neutral", ifelse(Pop_CRRA == -0.33, "Risk loving", ifelse(Pop_CRRA == -0.74, "Very risk loving", ifelse(Pop_CRRA == -1.33, "Highly risk loving", ifelse(Pop_CRRA < -1.33 , "Highly risk loving", "Problem")))))))))) ) %>% 
+
+  
+  # Create a second one that has all the risk loving people blended together:
+   mutate(., Blended_Pop_RiskAttitude = ifelse(Pop_CRRA == 0.98, "Highly risk averse", ifelse(Pop_CRRA == 0.84, "Very risk averse", ifelse(Pop_CRRA == 0.67, "Risk averse", ifelse(Pop_CRRA == 0.48, "Risk averse", ifelse(Pop_CRRA == 0.26, "Slightly risk averse", ifelse(Pop_CRRA == 0, "Risk neutral", ifelse(Pop_CRRA < 0, "Any Risk loving", "Problem")))))))) %>% 
+  
+  # Now with numerical values for the probit model ! 
+  mutate(., Numerical_Blended_Pop_RiskAttitude = ifelse(Pop_CRRA == 0.98, 5, ifelse(Pop_CRRA == 0.84, 4, ifelse(Pop_CRRA == 0.67, 3, ifelse(Pop_CRRA == 0.48, 2, ifelse(Pop_CRRA == 0.26, 1, ifelse(Pop_CRRA == 0, 0, ifelse(Pop_CRRA < 0, -1, "Problem")))))))) %>% 
+
+# Now one with only four categories
+  mutate(., SIMPLE_Pop_RiskAttitude = ifelse(Pop_CRRA == 0.98, 4, ifelse(Pop_CRRA == 0.84, 4, ifelse(Pop_CRRA == 0.67, 3, ifelse(Pop_CRRA == 0.48, 3, ifelse(Pop_CRRA == 0.26, 3, ifelse(Pop_CRRA == 0, 2, ifelse(Pop_CRRA < 0, 1, "Problem"))))))))
+```
+
+### III) CRRA shift !
+
+Basically we computed a variable that is < CRRA_populations - CRRA_money > 
+That variable should summarise the shift between the two risk attitudes.
+The idea is to use the "monetary risk attitude" as a baseline of risk attitude. 
+For example, someone who had a negative value in Money Risk attitude is risk loving. Now if he is still risk loving
+with populations, the "CRRA difference" value should be even more negative. 
+If that person is very risk-averse with populations, the "CRRA diff" value will result in something like "Extremely risk averse", since the difference between his baseline risk attitude (the money) is larger than simply his risk attitude with populations ! 
+
+RESULTS: The outcome is that the variable as it is doesn't bring anything to any model. 
+         Thus the new version is summarised by quartiles, and has thus only 4 categories.
+
+```{r}
+library(gtools)
+Survey_Dummy_Variables_Rowan_V11.5 <- Survey_Dummy_Variables_Rowan_V11 %>% 
+  mutate(., CRRA_shift = Pop_CRRA - Money_CRRA) %>% 
+  mutate(., CRRA_shift_quantiled = ntile(CRRA_shift, 4)) 
+```
+
+```{r}
+table(Survey_Dummy_Variables_Rowan_V11.5$CRRA_shift)
+```
+```{r}
+ggplot(Survey_Dummy_Variables_Rowan_V11.5) +
+ aes(x = CRRA_shift) +
+ geom_histogram(bins = 30L, fill = "#112446") +
+ theme_minimal()
 ```
 
 
@@ -384,7 +430,7 @@ If from Round 1 to Round 2 allocation to HR stays SAME : Respondent is unaffecte
 --> Unique case: If it stays the same at zero, could be that respondent attributes no value to the information compared to the fact that more populations can be saved by protecting the LR.
 
 ```{r}
-Survey_Dummy_Variables_Rowan_V12 <- Survey_Dummy_Variables_Rowan_V11 %>% 
+Survey_Dummy_Variables_Rowan_V12 <- Survey_Dummy_Variables_Rowan_V11.5 %>% 
   
   # Create a nicer variable for Round 1:
   mutate(Alloc_LR_Round1 = ifelse(is.na(Risk_Reduction_LR_14_percent) & is.na(Risk_Reduction_LR_20_percent), NA, ifelse(is.na(Risk_Reduction_LR_20_percent), Risk_Reduction_LR_14_percent, ifelse(is.na(Risk_Reduction_LR_14_percent), Risk_Reduction_LR_20_percent, "Problem")))) %>% 
@@ -544,6 +590,15 @@ Survey_Dummy_Variables_Rowan_Simple_V1$Alloc_diff_Round2to3 <- as.numeric(Survey
 ```
 
 
+```{r}
+table(Survey_Dummy_Variables_Rowan_Simple_V1$Money_CRRA)
+```
+
+```{r}
+table(Survey_Dummy_Variables_Rowan_Simple_V1$Pop_CRRA)
+```
+
+
 # 3) The main models
 
 
@@ -690,13 +745,14 @@ Linearmod_test_Round1 <- lm(formula = Alloc_HR_Round1 ~
                           Group +
                           TrueFalseScore +
                           # Money_Switch + Collinear !!
-                          Money_CRRA +
+                          #Money_CRRA +
                           # Pop_Switch +  Collinear !!
                           Pop_CRRA + 
                           Alloc_HR_Round2 +
                           Alloc_HR_Round3 +
                           Information_anticipation +
-                          Alloc_profile_AllRounds 
+                          Alloc_profile_AllRounds +
+                          CRRA_shift_quantiled  
                         
                         , data = Survey_Dummy_Variables_Rowan_Simple_V1) 
 ```
@@ -718,7 +774,7 @@ alias( Linearmod_test_Round1 )
 
 car::vif(Linearmod_test_Round1)
 ```
-  
+
   
 ```{r}
 summary(Linearmod_test_Round1)
@@ -749,15 +805,23 @@ Linearmod_test_Round2 <- lm(formula = Alloc_HR_Round2 ~
                           Scale_Sufficently_Protected_Second +
                           Group +
                           TrueFalseScore +
-                          Money_CRRA +
+                          #Money_CRRA +   # Constently removed in all models when CRRA_shift is present, these two appear 
+                                          # as perfectly collinear.
                           Pop_CRRA + 
                           Alloc_HR_Round1 +
                           Alloc_HR_Round3 +
                           Information_anticipation +
-                          Alloc_profile_AllRounds 
+                          Alloc_profile_AllRounds +
+                            CRRA_shift_quantiled 
                         
                         , data = Survey_Dummy_Variables_Rowan_Simple_V1) 
 ```
+  
+```{r}
+alias( Linearmod_test_Round2 )
+
+car::vif(Linearmod_test_Round2)
+```  
   
 ```{r}
 summary(Linearmod_test_Round2)
@@ -787,16 +851,23 @@ Linearmod_test_Round3 <- lm(formula = Alloc_HR_Round3 ~
                           Scale_Sufficently_Protected_Second +
                           Group +
                           TrueFalseScore +
-                          Money_CRRA +
+                          #Money_CRRA +
                           Pop_CRRA + 
                           Alloc_HR_Round1 +
                           Alloc_HR_Round2 +
                           Information_anticipation +
-                          Alloc_profile_AllRounds 
-                        
+                          Alloc_profile_AllRounds +
+                          CRRA_shift_quantiled
+                          
                         , data = Survey_Dummy_Variables_Rowan_Simple_V1) 
 ```
-  
+
+```{r}
+alias( Linearmod_test_Round3)
+
+car::vif(Linearmod_test_Round3)
+``` 
+
 ```{r}
 summary(Linearmod_test_Round3)
 ```
@@ -809,7 +880,7 @@ Since the response variable is categorical we need a multinomial logistic regres
 https://datasciencebeginners.com/2018/12/20/multinomial-logistic-regression-using-r/
 
 ```{r}
-# Setting the basline 
+# Setting the baseline 
 Survey_Dummy_Variables_Rowan_Simple_V1$Alloc_profile_AllRounds <- relevel(as.factor(Survey_Dummy_Variables_Rowan_Simple_V1$Alloc_profile_AllRounds), ref = "Same-Same")
 
 Linearmod_test_Profile <- multinom(formula = Alloc_profile_AllRounds ~ 
@@ -838,8 +909,9 @@ Linearmod_test_Profile <- multinom(formula = Alloc_profile_AllRounds ~
                           Alloc_HR_Round1 +
                           Alloc_HR_Round2 +
                           Alloc_HR_Round3 +
-                          Information_anticipation 
-                        
+                          Information_anticipation +
+                          CRRA_shift_quantiled
+                          
                         , data = Survey_Dummy_Variables_Rowan_Simple_V1) 
 ```
 
@@ -876,17 +948,18 @@ Linearmod_Diff_Round1to2 <- lm(formula = Alloc_diff_Round1to2 ~
                           Scale_Sufficently_Protected_Second +
                           Group +
                           TrueFalseScore +
-                          Money_CRRA +
+                          #Money_CRRA +
                           Pop_CRRA + 
                           Alloc_HR_Round3 +
                           Information_anticipation +
-                          Alloc_profile_AllRounds 
+                          Alloc_profile_AllRounds +
+                          CRRA_shift_quantiled
                         
                         , data = Survey_Dummy_Variables_Rowan_Simple_V1,
                         singular.ok = F) 
 ```
 
-### a) Multi-collinearity ?
+Multi-collinearity ?
 
 ```{r}
 alias( Linearmod_Diff_Round1to2 )
@@ -925,11 +998,12 @@ Linearmod_Diff_Round2to3 <- lm(formula = Alloc_diff_Round2to3 ~
                           Scale_Sufficently_Protected_Second +
                           Group +
                           TrueFalseScore +
-                          Money_CRRA +
+                          #Money_CRRA +  
                           Pop_CRRA + 
                           Alloc_HR_Round1 +
                           Information_anticipation +
-                          Alloc_profile_AllRounds 
+                          Alloc_profile_AllRounds +
+                          CRRA_shift_quantiled
                         
                         , data = as.data.frame(Survey_Dummy_Variables_Rowan_Simple_V1)) 
 ```
@@ -1053,7 +1127,7 @@ esquisser(Survey_Dummy_Variables_Rowan_Simple_V2)
 Maybe take a look at ordered probit models, they could be what you need:
 https://en.wikipedia.org/wiki/Ordered_probit 
 
-In statistics, ordered probit is a generalization of the widely used probit analysis to the case of more than two outcomes of an ordinal dependent variable (a dependent variable for which the potential values have a natural ordering, as in poor, fair, good, excellent). 
+In statistics, ordered probit is a generalization of the widely used probit analysis to the case of more than two outcomes of an ordinal dependent variable (a dependent variable for which the potential values have a natural ordering, as in poor, fair, good, excellent).
 Ordered probit, like ordered logit, is a particular method of ordinal regression.
 
 Another example application are Likert-type items commonly employed in survey research, where respondents rate their agreement on an ordered scale (e.g., "Strongly disagree" to "Strongly agree"). The ordered probit model provides an appropriate fit to these data, preserving the ordering of response options while making no assumptions of the interval distances between options.
@@ -1109,6 +1183,169 @@ significance, the z-value should fall outside the ±1.96.
 
 The Estimate column shows the coefficients in log-odds form. What you get from this 
 column is whether the effect of the predictors is positive or negative. 
+
+### b) Probit Populations Risk attitude
+
+THIS IS WITH RISK LOVERS ALL BLENDED INTO ONE CATEGORY
+
+```{r}
+library("oglmx")
+
+OP_Blended_Pop_RiskAttitudes <- oprobit.reg(Numerical_Blended_Pop_RiskAttitude ~ 
+                          Age_grouped +
+                          Geographic_group +
+                          Duration_in_minutes_capped +
+                          Gender + 
+                          Employment_status +
+                          University_Research_Dummy +
+                          Environmental_Protection_Agency_Dummy +
+                          Wildlife_Conservation_Dummy +
+                          Undergrad_Dummy + 
+                          Postgrad_Dummy +
+                          Work_Exp_Dummy +
+                          Study_Exp_Dummy +
+                          Volunteering_Exp_Dummy +
+                          Confidence_in_survey +
+                          Char_conservation_interest +
+                          Publications_read +
+                          Scale_Sufficently_Protected_First +
+                          Scale_Sufficently_Protected_Second +
+                          Group +
+                          TrueFalseScore +
+                     #     Money_CRRA  +        # Probably too influential on this model
+                          Alloc_diff_Round1to2 +
+                          Alloc_diff_Round2to3 + 
+                          Information_anticipation +
+                          Alloc_profile_AllRounds 
+                        
+                           , data = as.data.frame(Survey_Dummy_Variables_Rowan_Simple_V1))
+```
+
+```{r}
+summary(OP_Blended_Pop_RiskAttitudes)
+```
+
+```{r}
+library("oglmx")
+
+OP_Pop_RiskAttitudes <- oprobit.reg(Pop_CRRA ~ 
+                          Age_grouped +
+                          Geographic_group +
+                          Duration_in_minutes_capped +
+                          Gender + 
+                          Employment_status +
+                          University_Research_Dummy +
+                          Environmental_Protection_Agency_Dummy +
+                          Wildlife_Conservation_Dummy +
+                          Undergrad_Dummy + 
+                          Postgrad_Dummy +
+                          Work_Exp_Dummy +
+                          Study_Exp_Dummy +
+                          Volunteering_Exp_Dummy +
+                          Confidence_in_survey +
+                          Char_conservation_interest +
+                          Publications_read +
+                          Scale_Sufficently_Protected_First +
+                          Scale_Sufficently_Protected_Second +
+                          Group +
+                          TrueFalseScore +
+                     #     Money_CRRA  +        # Probably too influential on this model
+                          Alloc_diff_Round1to2 +
+                          Alloc_diff_Round2to3 + 
+                          Information_anticipation +
+                          Alloc_profile_AllRounds 
+                        
+                           , data = as.data.frame(Survey_Dummy_Variables_Rowan_Simple_V1))
+```
+
+```{r}
+summary(OP_Pop_RiskAttitudes)
+```
+### c) Probit Simplified Populations Risk attitude
+
+```{r}
+library("oglmx")
+
+OP_SIMPLE_Pop_RiskAttitudes <- oprobit.reg(SIMPLE_Pop_RiskAttitude ~ 
+                          Age_grouped +
+                          Geographic_group +
+                          Duration_in_minutes_capped +
+                          Gender + 
+                          Employment_status +
+                          University_Research_Dummy +
+                          Environmental_Protection_Agency_Dummy +
+                          Wildlife_Conservation_Dummy +
+                          Undergrad_Dummy + 
+                          Postgrad_Dummy +
+                          Work_Exp_Dummy +
+                          Study_Exp_Dummy +
+                          Volunteering_Exp_Dummy +
+                          Confidence_in_survey +
+                          Char_conservation_interest +
+                          Publications_read +
+                          Scale_Sufficently_Protected_First +
+                          Scale_Sufficently_Protected_Second +
+                          Group +
+                          TrueFalseScore +
+                     #     Money_CRRA  +        # Probably too influential on this model
+                          Alloc_diff_Round1to2 +
+                          Alloc_diff_Round2to3 + 
+                          Information_anticipation +
+                          Alloc_profile_AllRounds 
+                          
+                           , data = as.data.frame(Survey_Dummy_Variables_Rowan_Simple_V1))
+```
+
+```{r}
+summary(OP_SIMPLE_Pop_RiskAttitudes)
+```
+## XI) Model CRRA difference in populations
+
+Basically we computed a variable that is < CRRA_populations - CRRA_money > 
+That variable should summarise the shift between the two risk attitudes.
+The idea is to use the "monetary risk attitude" as a baseline of risk attitude. 
+For example, someone who had a negative value in Money Risk attitude is risk loving. Now if he is still risk loving
+with populations, the "CRRA difference" value should be even more negative. 
+If that person is very risk-averse with populations, the "CRRA diff" value will result in something like "Extremely risk averse", since the difference between his baseline risk attitude (the money) is larger than simply his risk attitude with populations ! 
+
+*** BE CAREFUL WITH THAT VARIABLE ***
+
+The problem is that someone that is Very risk averse with money and only slightly risk averse with populations will end up having a positive value (negative - negative = positive) and will thus be considered as risk averse. 
+The truth is that this person is not risk averse per se, but only MORE risk averse with populations than with money. 
+This is exactly what we are trying to do but it is important to interpret this value differently.
+
+```{r}
+OP_CRRA_shift <- oprobit.reg(formula = CRRA_shift_quantiled ~ 
+                          Age_grouped + 
+                          Geographic_group + 
+                          Duration_in_minutes_capped + 
+                          Gender + 
+                          Employment_status +
+                          University_Research_Dummy +
+                          Environmental_Protection_Agency_Dummy +
+                          Wildlife_Conservation_Dummy +
+                          Undergrad_Dummy + 
+                          Postgrad_Dummy +
+                          Work_Exp_Dummy +
+                          Study_Exp_Dummy +
+                          Volunteering_Exp_Dummy +
+                          Confidence_in_survey +
+                          Char_conservation_interest +
+                          Publications_read +
+                          Scale_Sufficently_Protected_First +
+                          Scale_Sufficently_Protected_Second +
+                          Group +
+                          TrueFalseScore +
+                          Information_anticipation + 
+                          Alloc_diff_Round1to2 +
+                          Alloc_diff_Round2to3 
+                        
+                        , data = as.data.frame(Survey_Dummy_Variables_Rowan_Simple_V1)) 
+```
+  
+```{r}
+summary(OP_CRRA_shift)
+```
 
 
 # 4) Various plots and statistics
@@ -1726,14 +1963,13 @@ Duration_model <- lm(formula = Duration_in_minutes_capped ~
                           Alloc_HR_Round2 +
                           Alloc_HR_Round3 +
                           Information_anticipation +
-                          Alloc_profile_AllRounds 
+                          Alloc_profile_AllRounds
                         
                         , data = Survey_Dummy_Variables_Rowan_Simple_V1) 
 ```
 
 ```{r}
-alias( Duration_model )
-
+alias(Duration_model)
 car::vif(Duration_model)
 ```
   
