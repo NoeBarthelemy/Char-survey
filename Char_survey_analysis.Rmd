@@ -15,6 +15,11 @@ library(tidyverse)
 library(readxl)
 library(esquisse)
 library(nnet)
+library("oglmx")
+
+pickRandomRows = function(df, numberOfRows = 10) {
+  df %>% slice(runif(numberOfRows,0, length(df[,1])))
+}
 ```
 
 This is empty but I needed a script to try the sharing process with Rowan.
@@ -110,9 +115,10 @@ How can we fit the allocation variables into the regression ?
 Do we want to in the first place ?
 
 
-Meeting with Rowan 15 OCtober 2021: 
+Meeting with Daniel: 
 
-
+Make sure you use robust residual errors: 
+https://stats.stackexchange.com/questions/117052/replicating-statas-robust-option-in-r 
 
 
 
@@ -163,11 +169,12 @@ Baby_names_only <- babynames %>% select(., name) %>% unique()
 Survey_Dummy_Variables_Rowan_V1_named<- cbind(Baby_names_sample, Survey_Dummy_Variables_Rowan_V1_September2021)
 
 Survey_Dummy_Variables_Rowan_V2 <- Survey_Dummy_Variables_Rowan_V1_named %>% 
-  filter(., Progress >= 70) %>% 
+  filter(., Progress >= 70) 
+  # %>% 
   # Create a variable that summarises missing data.
-  mutate(MissingData = rowSums(is.na(.))) %>% 
-  filter(., MissingData <= 20) %>% 
-  select(., MissingData, everything()) 
+  # mutate(MissingData = rowSums(is.na(.))) %>% 
+  # filter(., MissingData <= 20) %>% 
+  # select(., MissingData, everything()) 
 ```
 apply(mtcars, MARGIN = 1, function(x) sum(is.na(x)))
 
@@ -206,7 +213,7 @@ Survey_Dummy_Variables_Rowan_V5 <- Survey_Dummy_Variables_Rowan_V4 %>%
   # Create the age variable
   mutate(., Age = 2021 - as.numeric(Year_of_birth)) %>% 
   # Group by class of age ! 
-  mutate(., Age_grouped = if_else(Age <= 30, "EarlyAge", if_else(Age >= 31 & Age <= 60, "MediumAge", if_else(Age >= 61, "OldAge", "Problem!!")))) %>% 
+  mutate(., Age_grouped = if_else(Age <= 30, "EarlyAge", if_else(Age >= 31 & Age <= 55, "MediumAge", if_else(Age >= 56, "OldAge", "Problem!!")))) %>% 
   select(., Year_of_birth, Age,Age_grouped,  everything()) 
 ```
 
@@ -233,7 +240,10 @@ Survey_Dummy_Variables_Rowan_V6 <- Survey_Dummy_Variables_Rowan_V5 %>%
 Survey_Dummy_Variables_Rowan_V7 <- Survey_Dummy_Variables_Rowan_V6 %>% 
   mutate(., Volunteering_Exp_Dummy = ifelse(grepl(pattern = "volunteering", x = Conservation_experience) == T, yes = "1",  no =  "0")) %>% 
   mutate(., Work_Exp_Dummy = ifelse(grepl(pattern = "work", x = Conservation_experience) == T, yes = "1",  no =  "0")) %>% 
-  mutate(., Study_Exp_Dummy = ifelse(grepl(pattern = "studies", x = Conservation_experience) == T, yes = "1",  no =  "0")) 
+  mutate(., Study_Exp_Dummy = ifelse(grepl(pattern = "studies", x = Conservation_experience) == T, yes = "1",  no =  "0")) %>% 
+  mutate(., Conservation_score = ifelse(Volunteering_Exp_Dummy ==1 , 5, 0)) %>% 
+  mutate(., Conservation_score = ifelse(Study_Exp_Dummy ==1 , Conservation_score + 10, Conservation_score)) %>% 
+  mutate(., Conservation_score = ifelse(Work_Exp_Dummy ==1 , Conservation_score + 20, Conservation_score)) 
 ```
 
 
@@ -284,6 +294,7 @@ For the "True or false" : Use regex to create a dummy variable for each answer, 
 It is relatively easy but takes a few lines of code:
 We'll create score variables for each value found, and then sum up this into a global score variable.
 Then we remove the score variables and keep only the global score.
+
 ```{r}
 # We need a function to operate the sum at the end
 p_sum <- function(...) {
@@ -350,9 +361,21 @@ Survey_Dummy_Variables_Rowan_V10 <- Survey_Dummy_Variables_Rowan_V9 %>%
   # Create a Risk-attitude variable 
   # Based on the CRRA values we attribute some risk attitudes. We may have to change the thresholds later !
   mutate(., Money_RiskAttitude = ifelse(Money_CRRA == 0.98, "Highly risk averse", ifelse(Money_CRRA == 0.84, "Very risk averse", ifelse(Money_CRRA == 0.67, "Risk averse", ifelse(Money_CRRA == 0.48, "Risk averse", ifelse(Money_CRRA == 0.26, "Slightly risk averse", ifelse(Money_CRRA == 0, "Risk neutral", ifelse(Money_CRRA == -0.33, "Risk loving", ifelse(Money_CRRA == -0.74, "Very risk loving", ifelse(Money_CRRA == -1.33, "Highly risk loving", ifelse(Money_CRRA < -1.33 , "Highly risk loving", "Problem")))))))))) ) %>% 
+  
+  # Make a VERY SIMPLE version with only three categories.
+    mutate(., Money_RiskAttitude_VERYsimple = ifelse(Money_CRRA > 0, "Risk averse", ifelse(Money_CRRA < 0, "Risk loving", ifelse(Money_CRRA == 0, "Risk neutral", "Problem")))) %>%  
 
   # Create a second one that has all the risk loving people blended together:
-  mutate(., Blended_Money_RiskAttitude = ifelse(Money_CRRA == 0.98, "Highly risk averse", ifelse(Money_CRRA == 0.84, "Very risk averse", ifelse(Money_CRRA == 0.67, "Risk averse", ifelse(Money_CRRA == 0.48, "Risk averse", ifelse(Money_CRRA == 0.26, "Slightly risk averse", ifelse(Money_CRRA == 0, "Risk neutral", ifelse(Money_CRRA < 0, "Any Risk loving", "Problem"))))))))
+  mutate(., Blended_Money_RiskAttitude = ifelse(Money_CRRA == 0.98, "Highly risk averse", ifelse(Money_CRRA == 0.84, "Very risk averse", ifelse(Money_CRRA == 0.67, "Risk averse", ifelse(Money_CRRA == 0.48, "Risk averse", ifelse(Money_CRRA == 0.26, "Slightly risk averse", ifelse(Money_CRRA == 0, "Risk neutral", ifelse(Money_CRRA < 0, "Any Risk loving", "Problem")))))))) %>% 
+
+  # And a third that is the same with less levels:
+  mutate(., Blended_Money_RiskAttitude_Simpler = ifelse(Money_CRRA == 0.98, "Any Risk averse", ifelse(Money_CRRA == 0.84, "Any Risk averse", ifelse(Money_CRRA == 0.67, "Any Risk averse", ifelse(Money_CRRA == 0.48, "Any Risk averse", ifelse(Money_CRRA == 0.26, "Risk neutral", ifelse(Money_CRRA == 0, "Risk neutral", ifelse(Money_CRRA < 0, "Any Risk loving", "Problem")))))))) %>% 
+  
+    # Now with numerical values for the probit model ! 
+  mutate(., Numerical_Blended_Money_RiskAttitude = ifelse(Money_CRRA == 0.98, 5, ifelse(Money_CRRA == 0.84, 4, ifelse(Money_CRRA == 0.67, 3, ifelse(Money_CRRA == 0.48, 2, ifelse(Money_CRRA == 0.26, 1, ifelse(Money_CRRA == 0, 0, ifelse(Money_CRRA < 0, -1, "Problem")))))))) %>% 
+
+# Now one with only four categories
+  mutate(., SIMPLE_Money_RiskAttitude = ifelse(Money_CRRA == 0.98, 4, ifelse(Money_CRRA == 0.84, 4, ifelse(Money_CRRA == 0.67, 3, ifelse(Money_CRRA == 0.48, 3, ifelse(Money_CRRA == 0.26, 3, ifelse(Money_CRRA == 0, 2, ifelse(Money_CRRA < 0, 1, "Problem"))))))))
 ```
 
 ### II) Population CRRA
@@ -368,9 +391,15 @@ Survey_Dummy_Variables_Rowan_V11 <- Survey_Dummy_Variables_Rowan_V10 %>%
   # Based on the CRRA values we attribute some risk attitudes. We may have to change the thresholds later !
   mutate(., Pop_RiskAttitude = ifelse(Pop_CRRA == 0.98, "Highly risk averse", ifelse(Pop_CRRA == 0.84, "Very risk averse", ifelse(Pop_CRRA == 0.67, "Risk averse", ifelse(Pop_CRRA == 0.48, "Risk averse", ifelse(Pop_CRRA == 0.26, "Slightly risk averse", ifelse(Pop_CRRA == 0, "Risk neutral", ifelse(Pop_CRRA == -0.33, "Risk loving", ifelse(Pop_CRRA == -0.74, "Very risk loving", ifelse(Pop_CRRA == -1.33, "Highly risk loving", ifelse(Pop_CRRA < -1.33 , "Highly risk loving", "Problem")))))))))) ) %>% 
 
+  # Make a VERY SIMPLE version with only three categories.
+    mutate(., Pop_RiskAttitude_VERYsimple = ifelse(Pop_CRRA > 0, "Risk averse", ifelse(Pop_CRRA < 0, "Risk loving", ifelse(Pop_CRRA == 0, "Risk neutral", "Problem")))) %>%
+  
   
   # Create a second one that has all the risk loving people blended together:
    mutate(., Blended_Pop_RiskAttitude = ifelse(Pop_CRRA == 0.98, "Highly risk averse", ifelse(Pop_CRRA == 0.84, "Very risk averse", ifelse(Pop_CRRA == 0.67, "Risk averse", ifelse(Pop_CRRA == 0.48, "Risk averse", ifelse(Pop_CRRA == 0.26, "Slightly risk averse", ifelse(Pop_CRRA == 0, "Risk neutral", ifelse(Pop_CRRA < 0, "Any Risk loving", "Problem")))))))) %>% 
+  
+  # And a third that is the same with less levels:
+  mutate(., Blended_Pop_RiskAttitude_Simpler = ifelse(Pop_CRRA == 0.98, "Any Risk averse", ifelse(Pop_CRRA == 0.84, "Any Risk averse", ifelse(Pop_CRRA == 0.67, "Any Risk averse", ifelse(Pop_CRRA == 0.48, "Any Risk averse", ifelse(Pop_CRRA == 0.26, "Risk neutral", ifelse(Pop_CRRA == 0, "Risk neutral", ifelse(Pop_CRRA < 0, "Any Risk loving", "Problem")))))))) %>%   
   
   # Now with numerical values for the probit model ! 
   mutate(., Numerical_Blended_Pop_RiskAttitude = ifelse(Pop_CRRA == 0.98, 5, ifelse(Pop_CRRA == 0.84, 4, ifelse(Pop_CRRA == 0.67, 3, ifelse(Pop_CRRA == 0.48, 2, ifelse(Pop_CRRA == 0.26, 1, ifelse(Pop_CRRA == 0, 0, ifelse(Pop_CRRA < 0, -1, "Problem")))))))) %>% 
@@ -391,12 +420,17 @@ If that person is very risk-averse with populations, the "CRRA diff" value will 
 RESULTS: The outcome is that the variable as it is doesn't bring anything to any model. 
          Thus the new version is summarised by quartiles, and has thus only 4 categories.
 
+Also let's create a CRRA shift that is scaled on 100, so that model coefficients can be interpreted easily. 
 ```{r}
 library(gtools)
+library(scales)
+
 Survey_Dummy_Variables_Rowan_V11.5 <- Survey_Dummy_Variables_Rowan_V11 %>% 
   mutate(., CRRA_shift = Pop_CRRA - Money_CRRA) %>% 
-  mutate(., CRRA_shift_quantiled = ntile(CRRA_shift, 4)) 
+  mutate(., CRRA_shift_quantiled = ntile(CRRA_shift, 4))  %>% 
+  mutate(., CRRA_shift_simple = ifelse(CRRA_shift < 0, "More risk loving WP", ifelse(CRRA_shift == 0, "No change", ifelse(CRRA_shift > 0, "More risk averse WP", "Problemos")))) 
 ```
+
 
 ```{r}
 table(Survey_Dummy_Variables_Rowan_V11.5$CRRA_shift)
@@ -442,19 +476,29 @@ Survey_Dummy_Variables_Rowan_V12 <- Survey_Dummy_Variables_Rowan_V11.5 %>%
   mutate(Alloc_LR_Round3 = Risk_Reduction_LR_40_percent_Round_3) %>% 
   mutate(Alloc_HR_Round3 = Risk_Reduction_HR_80_percent_Round_3) %>% 
   
+  # Now fix the fact that you put 49/51 for round 2 and 51/49 for round 3 by default to avoid 50/50 situations (for stupid rounding purposes on qualtrics). 
+  # Thus by default alloc to HR was 51 in round1 , 49 in round 2 and 51 back again in round 3.
+  # So if people did put 51 to HR in round 2 we should put that back to 50 to not create artificial change when people did actually NOT CHANGE their allocation and kept the default. 
+  mutate(Alloc_LR_Round1 = ifelse(Alloc_LR_Round1 == 49, 50, Alloc_LR_Round1)) %>% 
+  mutate(Alloc_HR_Round1 = ifelse(Alloc_HR_Round1 == 51, 50, Alloc_HR_Round1)) %>% 
+  mutate(Alloc_LR_Round2 = ifelse(Alloc_LR_Round2 == 51, 50, Alloc_LR_Round2)) %>% 
+  mutate(Alloc_HR_Round2 = ifelse(Alloc_HR_Round2 == 49, 50, Alloc_HR_Round2)) %>%
+  mutate(Alloc_LR_Round3 = ifelse(Alloc_LR_Round3 == 49, 50, Alloc_LR_Round3)) %>% 
+  mutate(Alloc_HR_Round3 = ifelse(Alloc_HR_Round3 == 51, 50, Alloc_HR_Round3)) %>%
+  
   # Create a variable that summarises the allocation profile of a respondent: 
   # The idea is : Does the allocation goes up, or down? And then, up, down, the same?
   # To do that we need to put the focus on either the low risk or High risk.
   # I chose the High Risk allocation.
   mutate(., Alloc_profile_Round1to2 = ifelse(as.numeric(Alloc_HR_Round1) > as.numeric(Alloc_HR_Round2), "Down", ifelse(Alloc_HR_Round1 < Alloc_HR_Round2, "Up", ifelse(Alloc_HR_Round1 == Alloc_HR_Round2, "Same", "Problem")))) %>% 
   mutate(., Alloc_profile_Round2to3 = ifelse(Alloc_HR_Round2 > Alloc_HR_Round3, "Down", ifelse(Alloc_HR_Round2 < Alloc_HR_Round3, "Up", ifelse(Alloc_HR_Round2 == Alloc_HR_Round3, "Same", "Problem")))) %>% 
-
+  
   unite("Alloc_profile_AllRounds", Alloc_profile_Round1to2, Alloc_profile_Round2to3, sep = "-", remove = F)  %>%   
   
   # Quantify this profile 
   mutate(., Alloc_diff_Round1to2 = as.numeric(Alloc_HR_Round2) - as.numeric(Alloc_HR_Round1)) %>% 
-  mutate(., Alloc_diff_Round2to3 = as.numeric(Alloc_HR_Round3) - as.numeric(Alloc_HR_Round2))
-
+  mutate(., Alloc_diff_Round2to3 = as.numeric(Alloc_HR_Round3) - as.numeric(Alloc_HR_Round2)) %>% 
+  mutate(., Alloc_diff_Round1to3 = as.numeric(Alloc_HR_Round3) - as.numeric(Alloc_HR_Round1))
 ```
 
 ```{r}
@@ -479,17 +523,17 @@ ggplot(Allocation_differences, aes(x = Alloc_diff, fill = Round)) + geom_density
 # Another plot to see the evolution in budget allocation 
 Allocation_budgets1 <- Survey_Dummy_Variables_Rowan_V12 %>% 
   select(., Alloc_HR_Round1, Alloc_LR_Round1, name) %>% 
-  mutate(., Round = 1) %>% 
+  mutate(., Round = "One") %>% 
   rename(., Budget_alloc_HR = "Alloc_HR_Round1") %>% 
   rename(., Budget_alloc_LR = "Alloc_LR_Round1") 
 Allocation_budgets2 <- Survey_Dummy_Variables_Rowan_V12 %>% 
   select(., Alloc_HR_Round2, Alloc_LR_Round2, name)%>% 
-  mutate(., Round = 2) %>% 
+  mutate(., Round = "Two") %>% 
   rename(., Budget_alloc_HR = "Alloc_HR_Round2") %>% 
   rename(., Budget_alloc_LR = "Alloc_LR_Round2") 
 Allocation_budgets3 <- Survey_Dummy_Variables_Rowan_V12 %>% 
   select(., Alloc_HR_Round3, Alloc_LR_Round3, name)%>% 
-  mutate(., Round = 3) %>% 
+  mutate(., Round = "Three") %>% 
   rename(., Budget_alloc_HR = "Alloc_HR_Round3") %>% 
   rename(., Budget_alloc_LR = "Alloc_LR_Round3") 
 
@@ -499,8 +543,15 @@ Allocation_budgets$Budget_alloc_HR <- as.numeric(Allocation_budgets$Budget_alloc
 Allocation_budgets$Budget_alloc_LR <- as.numeric(Allocation_budgets$Budget_alloc_LR)
 
 
+ggplot(Allocation_budgets, aes(x = Budget_alloc_HR, fill = Round)) + geom_density(alpha = 0.5) +
+ labs(x = "Budget allocation to High-Risk populations in the different Rounds", y = "Density", title = "Budget allocation to High-Risk populations") +
+ theme_minimal()
+
+ggplot(Allocation_budgets, aes(x = Budget_alloc_LR, fill = Round)) + geom_density(alpha = 0.5) +
+ labs(x = "Budget allocation to Low-Risk populations in the different Rounds", y = "Density", title = "Budget allocation to Low-Risk populations") +
+ theme_minimal()
 ```
-# NEED HELP TO PLOT THAT
+# MAYBE A BETTER WAY TO PLOT THAT
 
 ```{r}
 mean(Survey_Dummy_Variables_Rowan_V12$Alloc_diff_Round1to2, na.rm = T)
@@ -558,8 +609,8 @@ Make a Simple version of the table
 Survey_Dummy_Variables_Rowan_Simple_V1 <- Survey_Dummy_Variables_Rowan_V15 %>% 
   select(., - c(Duration, Duration_in_minutes, Year_of_birth, Female, Male, Age ,Highest_education_level, Conservation_experience, Useless, True_false_question, Risk_lottery_money_99, Risk_lottery_money_90, Risk_lottery_money_80, Risk_lottery_money_70, Risk_lottery_money_60, Risk_lottery_money_50, Risk_lottery_money_40, Risk_lottery_money_30, Risk_lottery_money_20, Risk_lottery_money_10, Risk_lottery_populations_99, Risk_lottery_populations_90, Risk_lottery_populations_80, Risk_lottery_populations_70, Risk_lottery_populations_60, Risk_lottery_populations_50, Risk_lottery_populations_40, Risk_lottery_populations_30, Risk_lottery_populations_20, Risk_lottery_populations_10, Q1_Risk_Rating, Q2_Risk_Rating, Q3_Risk_Rating, Q4_Risk_Rating, Q5_Risk_Rating, Q6_Risk_Rating, Q7_Risk_Rating, Q8_Risk_Rating, Q9_Risk_Rating, Q10_Risk_Rating, Q1_Conservation_Risk_Rating_, Q2_Conservation_Risk_Rating_, Q3_Conservation_Risk_Rating_, Q4_Conservation_Risk_Rating_, Q5_Conservation_Risk_Rating_, Q6_Conservation_Risk_Rating_, Q7_Conservation_Risk_Rating_, Q8_Conservation_Risk_Rating_, Q9_Conservation_Risk_Rating_, Q10_Conservation_Risk_Rating_, Risk_Reduction_LR_14_percent, Risk_Reduction_LR_20_percent, Risk_Reduction_HR_70_percent, Risk_Reduction_HR_50_percent, Risk_Reduction_LR_40_percent_Round_2, Risk_Reduction_HR_80_percent_Round_2, Risk_Reduction_LR_40_percent_Round_3, Risk_Reduction_HR_80_percent_Round_3))  %>% 
   
-  # FILTER OUT MORE NA'S TO SOLVE THE MISSING DATA PROBLEM
-filter(., !is.na(Alloc_diff_Round2to3)) %>% 
+  # FILTER OUT MORE NA'S TO SOLVE THE MISSING DATA PROBLEM --> Why am I doing that again? 
+# filter(., !is.na(Alloc_diff_Round2to3)) %>% 
   
   # Remove the Student / Employed / Retired dummies: They create false collinearity. 
 select(., -c(Employed_Dummy, Student_Dummy, Retired_Dummy))
@@ -573,6 +624,7 @@ Survey_Dummy_Variables_Rowan_Simple_V1$Char_conservation_interest <- as.numeric(
 Survey_Dummy_Variables_Rowan_Simple_V1$Scale_Sufficently_Protected_First <- as.numeric(Survey_Dummy_Variables_Rowan_Simple_V1$Scale_Sufficently_Protected_First)
 Survey_Dummy_Variables_Rowan_Simple_V1$Scale_Sufficently_Protected_Second <- as.numeric(Survey_Dummy_Variables_Rowan_Simple_V1$Scale_Sufficently_Protected_Second)
 Survey_Dummy_Variables_Rowan_Simple_V1$Alloc_HR_Round1 <- as.numeric(Survey_Dummy_Variables_Rowan_Simple_V1$Alloc_HR_Round1)
+Survey_Dummy_Variables_Rowan_Simple_V1$Alloc_LR_Round1 <- as.numeric(Survey_Dummy_Variables_Rowan_Simple_V1$Alloc_LR_Round1)
 Survey_Dummy_Variables_Rowan_Simple_V1$Money_Switch <- as.numeric(Survey_Dummy_Variables_Rowan_Simple_V1$Money_Switch)
 Survey_Dummy_Variables_Rowan_Simple_V1$Pop_Switch <- as.numeric(Survey_Dummy_Variables_Rowan_Simple_V1$Pop_Switch)
 Survey_Dummy_Variables_Rowan_Simple_V1$Pop_CRRA <- as.numeric(Survey_Dummy_Variables_Rowan_Simple_V1$Pop_CRRA)
@@ -582,6 +634,38 @@ Survey_Dummy_Variables_Rowan_Simple_V1$Alloc_diff_Round2to3 <- as.numeric(Survey
 ```{r}
 # summary(Survey_Dummy_Variables_Rowan_Simple_V1)
 ```
+
+## N) Simple version V2
+
+The idea is that by simplifying some variables we may end up with a better model, with more significant effects. 
+For example, variables with different levels like the number of papers read can be summarised into a dummy variable that says "expert or not expert". 
+Also, for example the level of education can be put in an ordered way, like 1 (no education), 2 (Undergrad), 3 (Postgrad) etc. 
+We can also combine variables with each other if we think it is meaningful. 
+
+```{r}
+Survey_Dummy_Variables_Rowan_Simple_V2 <- Survey_Dummy_Variables_Rowan_Simple_V1  %>% 
+  
+  # Create an education level in factor1 ,2 ,3 etc
+  mutate(., Education_level = ifelse(Undergrad_Dummy == 0 & Postgrad_Dummy == 0, 0, ifelse(Undergrad_Dummy == 1 & Postgrad_Dummy == 0, 1, ifelse(Undergrad_Dummy == 0 & Postgrad_Dummy == 1, 2, "Problem")))) %>% 
+  
+  # Create a variable that summarises the fact that one may work in a Research institute of some kind like the IFI, EPA, or University
+  mutate(., Institutionnal_job = ifelse(University_Research_Dummy == 0 & Wildlife_Conservation_Dummy == 0 & Environmental_Protection_Agency_Dummy == 0, 0, 1)) %>% 
+
+  # Create an "EXPERT" variable (11 papers is an expert)
+  mutate(., Expert_dummy = ifelse(Publications_read == "21+" | Publications_read == "11-20" , 1, 0))  
+
+
+# Fix some classes
+Survey_Dummy_Variables_Rowan_Simple_V2$Education_level <- as.numeric(Survey_Dummy_Variables_Rowan_Simple_V2$Education_level)
+Survey_Dummy_Variables_Rowan_Simple_V2$SIMPLE_Money_RiskAttitude <- as.numeric(Survey_Dummy_Variables_Rowan_Simple_V2$SIMPLE_Money_RiskAttitude)
+Survey_Dummy_Variables_Rowan_Simple_V2$SIMPLE_Pop_RiskAttitude <- as.numeric(Survey_Dummy_Variables_Rowan_Simple_V2$SIMPLE_Pop_RiskAttitude)
+
+Survey_Dummy_Variables_Rowan_Simple_V2$Numerical_Blended_Money_RiskAttitude <- as.numeric(Survey_Dummy_Variables_Rowan_Simple_V2$Numerical_Blended_Money_RiskAttitude)
+Survey_Dummy_Variables_Rowan_Simple_V2$Numerical_Blended_Pop_RiskAttitude <- as.numeric(Survey_Dummy_Variables_Rowan_Simple_V2$Numerical_Blended_Pop_RiskAttitude)
+
+```
+
+
 
 # 2) Plotting
 
@@ -744,14 +828,14 @@ Linearmod_test_Round1 <- lm(formula = Alloc_HR_Round1 ~
                           Scale_Sufficently_Protected_Second +
                           Group +
                           TrueFalseScore +
-                          # Money_Switch + Collinear !!
-                          #Money_CRRA +
-                          # Pop_Switch +  Collinear !!
+                          # Money_Switch +  # Collinear !!
+                          #Money_CRRA +     # Collinear !!
+                          # Pop_Switch +  # Collinear !!
                           Pop_CRRA + 
                           Alloc_HR_Round2 +
                           Alloc_HR_Round3 +
                           Information_anticipation +
-                          Alloc_profile_AllRounds +
+                         # Alloc_profile_AllRounds +  # Not sure about this one
                           CRRA_shift_quantiled  
                         
                         , data = Survey_Dummy_Variables_Rowan_Simple_V1) 
@@ -826,6 +910,7 @@ car::vif(Linearmod_test_Round2)
 ```{r}
 summary(Linearmod_test_Round2)
 ```
+
 
 ## III) Model Round 3) 
 
@@ -962,7 +1047,7 @@ Linearmod_Diff_Round1to2 <- lm(formula = Alloc_diff_Round1to2 ~
 Multi-collinearity ?
 
 ```{r}
-alias( Linearmod_Diff_Round1to2 )
+alias( Linearmod_Diff_Round1to2)
 
 car::vif(Linearmod_Diff_Round1to2)
 ```
@@ -1112,14 +1197,7 @@ The idea is to combine our CRRA and Allocation variables in order to see if they
 The objective is to normalize the CRRA values to include them into a regression.
 
 ```{r}
-Survey_Dummy_Variables_Rowan_Simple_V2 <- Survey_Dummy_Variables_Rowan_Simple_V1 %>% 
-  mutate(., CRRA_diff = abs(Pop_CRRA - Money_CRRA)) %>% 
-  mutate(., Hybrid_CRRA_Alloc = Pop_CRRA * CRRA_diff) %>% 
-  select(., c(Money_CRRA, Pop_CRRA, CRRA_diff,  Hybrid_CRRA_Alloc))
-```
 
-```{r}
-esquisser(Survey_Dummy_Variables_Rowan_Simple_V2)
 ```
 
 ## X) Ordered probit models 
@@ -1264,7 +1342,6 @@ summary(OP_Pop_RiskAttitudes)
 ### c) Probit Simplified Populations Risk attitude
 
 ```{r}
-library("oglmx")
 
 OP_SIMPLE_Pop_RiskAttitudes <- oprobit.reg(SIMPLE_Pop_RiskAttitude ~ 
                           Age_grouped +
@@ -1317,34 +1394,304 @@ This is exactly what we are trying to do but it is important to interpret this v
 ```{r}
 OP_CRRA_shift <- oprobit.reg(formula = CRRA_shift_quantiled ~ 
                           Age_grouped + 
-                          Geographic_group + 
-                          Duration_in_minutes_capped + 
+                          # Geographic_group + 
+                          # Duration_in_minutes_capped + 
                           Gender + 
                           Employment_status +
-                          University_Research_Dummy +
-                          Environmental_Protection_Agency_Dummy +
-                          Wildlife_Conservation_Dummy +
-                          Undergrad_Dummy + 
-                          Postgrad_Dummy +
-                          Work_Exp_Dummy +
-                          Study_Exp_Dummy +
-                          Volunteering_Exp_Dummy +
-                          Confidence_in_survey +
+                          # Institutionnal_job +
+                          # Undergrad_Dummy + 
+                          # Postgrad_Dummy +
+                          relevel(as.factor(Education_level), ref = "0") + 
+                          relevel(as.factor(Conservation_score), ref = "0") + 
+                          # Confidence_in_survey +
                           Char_conservation_interest +
-                          Publications_read +
-                          Scale_Sufficently_Protected_First +
-                          Scale_Sufficently_Protected_Second +
-                          Group +
-                          TrueFalseScore +
-                          Information_anticipation + 
-                          Alloc_diff_Round1to2 +
-                          Alloc_diff_Round2to3 
+                          Publications_read 
+                          # TrueFalseScore 
+                          # Information_anticipation 
                         
-                        , data = as.data.frame(Survey_Dummy_Variables_Rowan_Simple_V1)) 
+                        , data = as.data.frame(Survey_Dummy_Variables_Rowan_Simple_V3)) 
+
+summary(OP_CRRA_shift, robust = T)
 ```
   
+  
+Now a simpler model that we build up, using Numerical_Blended_Pop_RiskAttitude as a dependent variable 
 ```{r}
-summary(OP_CRRA_shift)
+OP_NumRiskAtt <- oprobit.reg(formula = Numerical_Blended_Pop_RiskAttitude ~ 
+                           Age_grouped + 
+                           Geographic_group + 
+                           Gender +
+                           Employment_status +
+                           relevel(as.factor(Education_level), ref = "0") + 
+                           Institutionnal_job +
+                           Conservation_score + 
+                           Confidence_in_survey +
+                           Char_conservation_interest +
+                           Publications_read +
+                           Scale_Sufficently_Protected_First +
+                           Scale_Sufficently_Protected_Second +
+                           TrueFalseScore +
+                           Information_anticipation 
+                        
+                        , data = as.data.frame(Survey_Dummy_Variables_Rowan_Simple_V3)) 
+summary(OP_NumRiskAtt, robust =F)
+```
+
+
+
+
+## XII) Simpler models
+
+Following Daniel's advice on our meeting on the 21st of October, the goal is to create a model that is simpler.
+The idea is that we have few observations (~125 atm) and that too many variables results in an overfitted model. 
+Thus, we'll adopt a new approach, that is to integrate variables one by one instead of putting them all at once. 
+
+We will also look to integrate interaction terms.
+```{r}
+Survey_Dummy_Variables_Rowan_Simple_V3 <- Survey_Dummy_Variables_Rowan_Simple_V2 %>% 
+   filter(!row_number() %in% c(76)) 
+
+Buildup_model_V1 <- lm(formula = Alloc_HR_Round3 ~ 
+                          Alloc_HR_Round1 + 
+                          Alloc_HR_Round2 +
+                          Group + 
+                        #  relevel(as.factor(Age_grouped), ref = "MediumAge") +
+                          Char_conservation_interest * Age_grouped +
+                          Information_anticipation * Alloc_HR_Round2 +
+                          relevel(as.factor(Numerical_Blended_Pop_RiskAttitude), ref = "0") +
+                          relevel(as.factor(CRRA_shift_simple), ref = "No change") 
+                          # Age_grouped * Education_level   # Not significant
+                          
+                        , data = as.data.frame(Survey_Dummy_Variables_Rowan_Simple_V3)) 
+
+summary(Buildup_model_V1, robust = T)
+```
+
+What we learn : 
+
+Alloc_HR_Round1 and Alloc_HR_Round2 alone work very well. 
+The effect is ridiculous, but the trend is consistent. 
+
+Significant ones so far: 
+-> Alloc_HR_Round1
+-> Alloc_HR_Round2
+-> Age_groupedOldAge
+-> Numerical_Blended_Pop_RiskAttitude (for level 0 i.e all the risk loving people) : 
+   Works only if put in character format. We need to simplify further.
+-> Char_conservation_interest:Age_groupedOldAge (Depends on the model, p-value varies)
+-> relevel(as.factor(Numerical_Blended_Pop_RiskAttitude), ref = "0") -> Good apparently !
+-> relevel(as.factor(CRRA_shift_simple), ref = "No change")          -> Good apparently !
+
+
+Bad ones:
+-> CRRA_shift_quantiled alone is not great
+-> Pop_CRRA alone is not great
+-> Age_grouped alone is not great
+-> Geographic_group alone is not great
+-> Duration_in_minutes_capped alone is not great
+-> Gender alone is not great
+-> Employment_status alone is not great
+-> University_Research_Dummy alone is not great
+-> Environmental_Protection_Agency_Dummy alone is not great
+-> Wildlife_Conservation_Dummy alone is not great
+-> Institutionnal_job alone is not great but the effect is better than the other dummmies alone. 
+-> Education_level alone is not great
+-> Work_Exp_Dummy alone is not great
+-> Study_Exp_Dummy alone is not great
+-> Volunteering_Exp_Dummy alone is not great
+-> Confidence_in_survey alone is not great
+-> Char_conservation_interest alone is not great
+-> Publications_read alone is not great
+-> Expert_dummy (11 papers) alone is not great
+-> Scale_Sufficently_Protected FIRST or SECONDE alone are not great
+-> TrueFalseScore alone is not great
+-> Information_anticipation alone is not great
+-> Numerical_Blended_Money_RiskAttitude not great either.
+-> Blended_Pop_RiskAttitude_Simpler not great alone
+
+Interactions: 
+-> Char_conservation_interest * Age_grouped : No good
+-> 
+-> 
+-> 
+
+Maybe detect some outliers ? 
+```{r}
+car::outlierTest(Buildup_model_V1)
+```
+
+
+
+Check heterosedasticity:   https://www.r-bloggers.com/2016/01/how-to-detect-heteroscedasticity-and-rectify-it/ 
+```{r}
+plot(Buildup_model_V1)
+```
+Sometimes you may want an algorithmic approach to check for heteroscedasticity so that you can quantify its presence automatically and make amends. For this purpose, there are a couple of tests that comes handy to establish the presence or absence of heteroscedasticity – The Breush-Pagan test and the NCV test.
+```{r}
+lmtest::bptest(Buildup_model_V1)  # Breusch-Pagan test
+car::ncvTest(Buildup_model_V1)  # NCV Test
+```
+If both these test have a p-value less that a significance level of 0.05, therefore we can reject the null hypothesis that the variance of the residuals is constant and infer that heteroscedasticity is indeed present, thereby confirming our graphical inference.
+
+Using the olsrr package
+```{r}
+olsrr::ols_test_breusch_pagan(Buildup_model_V1)  # Breusch-Pagan test : Null Hypothesis: Equal/constant variances
+olsrr::ols_test_breusch_pagan(Buildup_model_V1, rhs = TRUE, multiple = TRUE, p.adj = 'bonferroni') # Use independent variables of the model and perform multiple tests + bonferoni correction. 
+olsrr::ols_test_score(Buildup_model_V1) # Score Test
+```
+Or another version of the 
+```{r}
+lmtest::bptest(Buildup_model_V1)
+```
+
+
+
+Another way to calculate roust standard errors thanks to a modified "summary" function. 
+```{r}
+# load necessary packages for importing the function
+library(RCurl)
+ 
+# import the function from repository
+url_robust <- "https://raw.githubusercontent.com/IsidoreBeautrelet/economictheoryblog/master/robust_summary.R"
+eval(parse(text = getURL(url_robust, ssl.verifypeer = FALSE)),
+     envir=.GlobalEnv)
+```
+
+
+Model summary package sounds very nice : https://vincentarelbundock.github.io/modelsummary/ 
+http://www.danieldsjoberg.com/gtsummary/ 
+
+Use that in the statistics if you want : 
+                              "conf.int",
+                           "t = {statistic}",
+                           "p = {p.value}")
+
+```{r}
+modelsummary::modelsummary(models = Buildup_model_V1, 
+                           estimate =  "{estimate} ({std.error}){stars} i.e {p.value}" ,
+                           statistic = NULL,
+                           vcov = "robust" ,  # No need for Robust standard errors as we don't have heterosedasticity !! But we keep it anyway !
+                           fmt = 2, output = "data.frame")
+
+Buildup_model_V1_Summary <- modelsummary::modelsummary(models = Buildup_model_V1, 
+                           estimate =  "{estimate} ({std.error}){stars} $ {p.value}" ,
+                           statistic = NULL,
+                           vcov = "robust" , 
+                           fmt = 2, output = "data.frame")
+write_csv2(x = Buildup_model_V1_Summary, file = "/home/nonopov/Bureau/PHD/Ongoing_Projects/Economics/Paper_survey/Model_crap/Buildup_model_V1_Summary.csv", na = "NA", append = F, col_names = T)
+```
+
+
+```{r}
+modelsummary::modelsummary(models = Buildup_model_V1, 
+                           estimate =  "{estimate} ({std.error}){stars}" ,
+                           statistic = c("conf.int", 
+                           "t = {statistic}",
+                           "p = {p.value}"),
+                           vcov = "robust" , 
+                           fmt = 2, 
+                           output = "data.frame")
+```
+
+```{r}
+Buildup_model_V1_df <- broom::tidy(summary(Buildup_model_V1, robust = T))
+
+write_csv2(x = Buildup_model_V1_df, file = "/home/nonopov/Bureau/PHD/Ongoing_Projects/Economics/Paper_survey/Model_crap/Buildup_model_V1_df.csv", na = "NA", append = F, col_names = T)
+```
+
+
+
+
+```{r}
+Buildup_model_V2 <- lm(formula = Alloc_diff_Round2to3 ~ 
+                          Alloc_diff_Round1to2 + 
+                          Group + 
+                          Char_conservation_interest * Age_grouped + 
+                          Information_anticipation 
+                          # Age_grouped * Education_level   # Not significant
+                          # Char_conservation_interest * Age_grouped # Not significant
+                        , data = as.data.frame(Survey_Dummy_Variables_Rowan_Simple_V2)) 
+summary(Buildup_model_V2)
+```
+
+Check a SEM (Structured Equation Model)
+
+Daniel advised to use that, with our three allocations as dependent variables ! 
+
+Check some tutorial here: https://stats.idre.ucla.edu/r/seminars/rsem/ 
+
+```{r}
+library(lavaan)
+
+SEM_V1 <- sem('
+               Alloc_HR_Round1 ~ Group + CRRA_shift + Publications_read 
+               Alloc_HR_Round2 ~ Group + CRRA_shift + Publications_read 
+               Alloc_HR_Round3 ~ Group + CRRA_shift + Publications_read 
+               
+               # We turn on the covariance(s) to account for the covariance between allocations (i.e sort of the baseline allocation that                 someone has)
+               Alloc_HR_Round1 ~~ Alloc_HR_Round2    
+               Alloc_HR_Round1 ~~ Alloc_HR_Round3
+               Alloc_HR_Round2 ~~ Alloc_HR_Round3
+              '
+  
+              , data= Survey_Dummy_Variables_Rowan_Simple_V2)
+
+summary(SEM_V1)
+```
+Note that the . in front of the parameter denotes an endogenous variable under Intercepts and a residual variance if under Variances or Covariances. 
+The intercept for other variables does not have a . nor does its variance signifying that it is an exogenous mean and variance. 
+
+The lm() function in R uses least squares estimation and lavaan uses maximum likelihood.
+
+The residual variance is the variance that is not explained by all exogenous predictors in the model. The coefficients change between covariance on and off models if the additional exogenous variable is correlated with other endogenous variables. If the covariance is turned on then the residual variance will account for the effect of ppsych on arith that was not modeled. Any coefficients that are not modeled in the other regressions will appear in the residual covariances, hence the difference in the coefficients when covariances are turned off. Notice that motiv appears in bothread ~ motiv and arith ~ ppsych + motiv which means that turning the covariance on or off will result in the same coefficients.
+
+```{r}
+library(lavaan)
+
+SEM_V2 <- sem('
+               Alloc_HR_Round1 ~                                     Group + CRRA_shift + Expert_dummy 
+               Alloc_HR_Round2 ~ Alloc_HR_Round1 +                   Group + CRRA_shift + Expert_dummy 
+               Alloc_HR_Round3 ~ Alloc_HR_Round1 + Alloc_HR_Round2 + Group + CRRA_shift + Expert_dummy
+               
+# We turn OFF the covariance(s) between allocations since they are included in the models above ! 
+              '
+  
+              , data= Survey_Dummy_Variables_Rowan_Simple_V2)
+
+summary(SEM_V2)
+```
+Interpretations:
+It shows what we wanted to see with the allocation trends: People allocate more to HR in Round 2, and slightly less in Round 3.
+Although I'm not sure of how to interpret the coefficients properly, that is, do they take into account the other predictors? 
+For example, for each unit of Alloc_HR_Rond1, Alloc_HR_Round3 is predicted to increase by 0.254 units (or whatever is the coeff atm)
+This shouldn't be true since the average allocation is higher in Round 1 than in Round 3, so the coefficient should be slightly negative, no ? Unless it doesn't account for other predictors that result in other allocations? Weird! I'm probably missing something. 
+
+```{r}
+mean(Survey_Dummy_Variables_Rowan_Simple_V2$Alloc_HR_Round1)
+mean(Survey_Dummy_Variables_Rowan_Simple_V2$Alloc_HR_Round2)
+mean(Survey_Dummy_Variables_Rowan_Simple_V2$Alloc_HR_Round3)
+```
+Typically, rejecting the null hypothesis is a good thing, but if we reject the SEM null hypothesis then we would reject our user model (which is bad). Failing to reject the model is good for our model because we have failed to disprove that our model is bad. Note that based on the logic of hypothesis testing, failing to reject the null hypothesis does not prove that our model is the true model, nor can we say it is the best model, as there may be many other competing models that can also fail to reject the null hypothesis. However, we can certainly say it isn’t a bad model, and it is the best model we can find at the moment.
+
+
+Try a Structural Regression Model 
+
+This is for example if we have construct like "Char knowledge" that we measure thanks to other variables, as below: 
+```{r}
+SRM_V1 <- sem('
+               Char_Knowledge =~ TrueFalseScore + Papers_read_fakeNumeric + Expert_dummy + Work_Exp_Dummy + Volunteering_Exp_Dummy
+               
+               
+               Alloc_HR_Round1 ~                                     Group + CRRA_shift + Char_Knowledge
+               Alloc_HR_Round2 ~ Alloc_HR_Round1 +                   Group + CRRA_shift + Char_Knowledge 
+               Alloc_HR_Round3 ~ Alloc_HR_Round1 + Alloc_HR_Round2 + Group + CRRA_shift + Char_Knowledge
+               
+# We turn OFF the covariance(s) between allocations since they are included in the models above ! 
+              '
+  
+              , data= Survey_Dummy_Variables_Rowan_Simple_V2)
+
+summary(SRM_V1)
 ```
 
 
@@ -1414,20 +1761,21 @@ ggplot(Survey_Dummy_Variables_Rowan_Simple_V1) +
  scale_fill_hue(direction = 1) +
  theme_minimal()
 ```
-Percentages for each geographic group
+
+We actually take the dataset below to explore many statistics to keep the number of observations constant! 
 ```{r}
-Gender_and_location <- Survey_Dummy_Variables_Rowan_V4 %>%  # We take V4 since it keeps the "Prefer not to say".
-  select(., Gender, Geographic_group) %>% 
+Gender_and_Riskattitude <- Survey_Dummy_Variables_Rowan_Simple_V2 %>%  # We take V4 since it keeps the "Prefer not to say".
+  select(., Gender, Pop_RiskAttitude_VERYsimple, Employment_status, Age_grouped, University_Research_Dummy, Environmental_Protection_Agency_Dummy, Wildlife_Conservation_Dummy, Undergrad_Dummy, Postgrad_Dummy, Volunteering_Exp_Dummy, Work_Exp_Dummy, Study_Exp_Dummy) %>% 
   filter(., !is.na(Gender)) %>% 
-  filter(., !is.na(Geographic_group)) 
+  filter(., !is.na(Pop_RiskAttitude_VERYsimple)) 
 
-NumMales <- sum(Gender_and_location$Gender == "Male")
-NumFemales <- sum(Gender_and_location$Gender == "Female")
-NumNonBinary <- sum(Gender_and_location$Gender == "Non-binary")
-NumGenderNeutral <- sum(Gender_and_location$Gender == "Gender neutral")
-NumPrefNot2 <- sum(Gender_and_location$Gender == "Prefer not to say")
+NumMales <- sum(Gender_and_Riskattitude$Gender == "Male")
+NumFemales <- sum(Gender_and_Riskattitude$Gender == "Female")
+NumNonBinary <- sum(Gender_and_Riskattitude$Gender == "Non-binary")
+NumGenderNeutral <- sum(Gender_and_Riskattitude$Gender == "Gender neutral")
+NumPrefNot2 <- sum(Gender_and_Riskattitude$Gender == "Prefer not to say")
 
-NumTotalGenders <- nrow(Gender_and_location)
+NumTotalGenders <- nrow(Gender_and_Riskattitude)
 ```
 
 Now do the maths
@@ -1439,6 +1787,29 @@ paste(NumGenderNeutral / NumTotalGenders *100, "% of gender-neutral")
 paste(NumPrefNot2 / NumTotalGenders *100, "% of people who prefer not to say")
 ```
 
+Do that by group of Risk attitude: 
+```{r}
+Num_RiskLovers <- sum(Gender_and_Riskattitude$Pop_RiskAttitude_VERYsimple == "Risk loving")
+Num_RiskNeutrals <- sum(Gender_and_Riskattitude$Pop_RiskAttitude_VERYsimple == "Risk neutral")
+Num_RiskAverse <- sum(Gender_and_Riskattitude$Pop_RiskAttitude_VERYsimple == "Risk averse")
+
+paste(Num_RiskLovers, "risk lovers")
+paste(Num_RiskNeutrals, "risk neutral")
+paste(Num_RiskAverse, "risk averse")
+
+paste((sum(with(Gender_and_Riskattitude, Gender == "Female" & Pop_RiskAttitude_VERYsimple == "Risk loving")) / Num_RiskLovers *100),"% of females in risk loving people")
+paste((sum(with(Gender_and_Riskattitude, Gender == "Male" & Pop_RiskAttitude_VERYsimple == "Risk loving")) / Num_RiskLovers *100),"% of males in risk loving people")
+paste((sum(with(Gender_and_Riskattitude, Gender == "Prefer not to say" & Pop_RiskAttitude_VERYsimple == "Risk loving")) / Num_RiskLovers *100),"% of Prefer not to say in risk loving people")
+
+paste((sum(with(Gender_and_Riskattitude, Gender == "Female" & Pop_RiskAttitude_VERYsimple == "Risk neutral")) / Num_RiskNeutrals *100),"% of females in risk neutral people")
+paste((sum(with(Gender_and_Riskattitude, Gender == "Male" & Pop_RiskAttitude_VERYsimple == "Risk neutral")) / Num_RiskNeutrals *100),"% of males in risk neutral people")
+paste((sum(with(Gender_and_Riskattitude, Gender == "Prefer not to say" & Pop_RiskAttitude_VERYsimple == "Risk neutral")) / Num_RiskNeutrals *100),"% of Prefer not to say in risk neutral people")
+
+paste((sum(with(Gender_and_Riskattitude, Gender == "Female" & Pop_RiskAttitude_VERYsimple == "Risk averse")) / Num_RiskAverse *100),"% of females in risk averse people")
+paste((sum(with(Gender_and_Riskattitude, Gender == "Male" & Pop_RiskAttitude_VERYsimple == "Risk averse")) / Num_RiskAverse *100),"% of males in risk averse people")
+paste((sum(with(Gender_and_Riskattitude, Gender == "Prefer not to say" & Pop_RiskAttitude_VERYsimple == "Risk averse")) / Num_RiskAverse *100),"% of Prefer not to say in risk averse people")
+```
+
 
 ### c) Employed vs Student vs Retired. 
 
@@ -1448,7 +1819,7 @@ Employement_df <- Survey_Dummy_Variables_Rowan_Simple_V1 %>%
   select(., Employment_status, Geographic_group) %>% 
   filter(., !is.na(Employment_status)) %>% 
   filter(., !is.na(Geographic_group)) %>% 
-  filter(., !Geographic_group == "WhereIsThat?") 
+  filter(., !Geographic_group == "WhereIsThat?")
 
 Total_nrow_Employement_df <- nrow(Employement_df)
 
@@ -1457,6 +1828,21 @@ paste((sum(with(Employement_df, Employment_status == "Unemployed")) / Total_nrow
 paste((sum(with(Employement_df, Employment_status == "Student")) / Total_nrow_Employement_df *100),"% of students")
 paste((sum(with(Employement_df, Employment_status == "Retired")) / Total_nrow_Employement_df *100),"% of retired people")
 ```
+With different risk attitudes : 
+```{r}
+paste((sum(with(Gender_and_Riskattitude, Employment_status == "Student" & Pop_RiskAttitude_VERYsimple == "Risk loving")) / Num_RiskLovers *100),"% of Student in risk loving people")
+paste((sum(with(Gender_and_Riskattitude, Employment_status == "Employed" & Pop_RiskAttitude_VERYsimple == "Risk loving")) / Num_RiskLovers *100),"% of Employed in risk loving people")
+paste((sum(with(Gender_and_Riskattitude, Employment_status == "Retired" & Pop_RiskAttitude_VERYsimple == "Risk loving")) / Num_RiskLovers *100),"% of Retired in risk loving people")
+
+paste((sum(with(Gender_and_Riskattitude, Employment_status == "Student" & Pop_RiskAttitude_VERYsimple == "Risk neutral")) / Num_RiskNeutrals *100),"% of Student in risk neutral people")
+paste((sum(with(Gender_and_Riskattitude, Employment_status == "Employed" & Pop_RiskAttitude_VERYsimple == "Risk neutral")) / Num_RiskNeutrals *100),"% of Employed in risk neutral people")
+paste((sum(with(Gender_and_Riskattitude, Employment_status == "Retired" & Pop_RiskAttitude_VERYsimple == "Risk neutral")) / Num_RiskNeutrals *100),"% of Retired in risk neutral people")
+
+paste((sum(with(Gender_and_Riskattitude, Employment_status == "Student" & Pop_RiskAttitude_VERYsimple == "Risk averse")) / Num_RiskAverse *100),"% of Student in risk averse people")
+paste((sum(with(Gender_and_Riskattitude, Employment_status == "Employed" & Pop_RiskAttitude_VERYsimple == "Risk averse")) / Num_RiskAverse *100),"% of Employed in risk averse people")
+paste((sum(with(Gender_and_Riskattitude, Employment_status == "Retired" & Pop_RiskAttitude_VERYsimple == "Risk averse")) / Num_RiskAverse *100),"% of Retired in risk averse people")
+```
+
 In North Atlantic Islands 
 ```{r}
 North_Atlantic_Isles_nrow = sum(with(Employement_df, Geographic_group == "North_Atlantic_Isles"))
@@ -1485,10 +1871,9 @@ Total_nrow_Position_df <- nrow(Position_df)
 ```
 
 ```{r}
-paste((sum(with(Position_df, University_Research_Dummy == 1)) / Total_nrow_Position_df *100),"% of University people")
-paste((sum(with(Position_df, Environmental_Protection_Agency_Dummy == 1)) / Total_nrow_Position_df *100),"% of EPA people")
-paste((sum(with(Position_df, Wildlife_Conservation_Dummy == 1)) / Total_nrow_Position_df *100),"% of IFI-like people")
-paste((sum(with(Position_df, Other_position_Dummy == 1)) / Total_nrow_Position_df *100),"% of other positions")
+paste((sum(with(Gender_and_Riskattitude, University_Research_Dummy == 1)) / NumTotalGenders *100),"% of University people")
+paste((sum(with(Gender_and_Riskattitude, Environmental_Protection_Agency_Dummy == 1)) / NumTotalGenders *100),"% of EPA people")
+paste((sum(with(Gender_and_Riskattitude, Wildlife_Conservation_Dummy == 1)) / NumTotalGenders *100),"% of IFI-like people")
 ```
 
 ##### - North America sample
@@ -1526,15 +1911,45 @@ paste((sum(with(Position_df, Other_position_Dummy == 1  & Geographic_group == "N
 (sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Wildlife_Conservation_Dummy==1 & Geographic_group == "Other_Europe")) / sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Geographic_group == "Other_Europe")) *100)
 
 ```
+##### - With different risk attitudes
+
+```{r}
+paste((sum(with(Gender_and_Riskattitude, University_Research_Dummy == 1 & Pop_RiskAttitude_VERYsimple == "Risk loving")) / Num_RiskLovers *100),"% of University_Research_Dummy in risk loving people")
+paste((sum(with(Gender_and_Riskattitude, Environmental_Protection_Agency_Dummy == 1 & Pop_RiskAttitude_VERYsimple == "Risk loving")) / Num_RiskLovers *100),"% of Environmental_Protection_Agency_Dummy in risk loving people")
+paste((sum(with(Gender_and_Riskattitude, Wildlife_Conservation_Dummy == 1 & Pop_RiskAttitude_VERYsimple == "Risk loving")) / Num_RiskLovers *100),"% of Wildlife_Conservation_Dummy in risk loving people")
+paste("  ")
+paste((sum(with(Gender_and_Riskattitude, University_Research_Dummy == 1 & Pop_RiskAttitude_VERYsimple == "Risk neutral")) / Num_RiskNeutrals *100),"% of University_Research_Dummy in risk neutral people")
+paste((sum(with(Gender_and_Riskattitude, Environmental_Protection_Agency_Dummy == 1 & Pop_RiskAttitude_VERYsimple == "Risk neutral")) / Num_RiskNeutrals *100),"% of Environmental_Protection_Agency_Dummy in risk neutral people")
+paste((sum(with(Gender_and_Riskattitude, Wildlife_Conservation_Dummy == 1 & Pop_RiskAttitude_VERYsimple == "Risk neutral")) / Num_RiskNeutrals *100),"% of Wildlife_Conservation_Dummy in risk neutral people")
+paste("  ")
+paste((sum(with(Gender_and_Riskattitude, University_Research_Dummy == 1 & Pop_RiskAttitude_VERYsimple == "Risk averse")) / Num_RiskAverse *100),"% of University_Research_Dummy in risk averse people")
+paste((sum(with(Gender_and_Riskattitude, Environmental_Protection_Agency_Dummy == 1 & Pop_RiskAttitude_VERYsimple == "Risk averse")) / Num_RiskAverse *100),"% of Environmental_Protection_Agency_Dummy in risk averse people")
+paste((sum(with(Gender_and_Riskattitude, Wildlife_Conservation_Dummy == 1 & Pop_RiskAttitude_VERYsimple == "Risk averse")) / Num_RiskAverse *100),"% of Wildlife_Conservation_Dummy in risk averse people")
+```
+
+
+
 ### e) Education 
 
 ##### - General sample
 ```{r}
 # Percentage of Undergrad people: 
-(sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Undergrad_Dummy ==1)) / nrow(Survey_Dummy_Variables_Rowan_Simple_V1) * 100)
+(sum(with(Gender_and_Riskattitude, Undergrad_Dummy ==1)) / nrow(Gender_and_Riskattitude) * 100)
 
 # Percentage of Postgrad people: 
-(sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Postgrad_Dummy ==1)) / nrow(Survey_Dummy_Variables_Rowan_Simple_V1) *100)
+(sum(with(Gender_and_Riskattitude, Postgrad_Dummy ==1)) / nrow(Gender_and_Riskattitude) *100)
+```
+##### - With different risk attitudes 
+
+```{r}
+paste((sum(with(Gender_and_Riskattitude, Postgrad_Dummy == 1 & Pop_RiskAttitude_VERYsimple == "Risk loving")) / Num_RiskLovers *100),"% of Postgrad_Dummy in risk loving people")
+paste((sum(with(Gender_and_Riskattitude, Undergrad_Dummy == 1 & Pop_RiskAttitude_VERYsimple == "Risk loving")) / Num_RiskLovers *100),"% of Undergrad_Dummy in risk loving people")
+paste("  ")
+paste((sum(with(Gender_and_Riskattitude, Postgrad_Dummy == 1 & Pop_RiskAttitude_VERYsimple == "Risk neutral")) / Num_RiskNeutrals *100),"% of Postgrad_Dummy in risk neutral people")
+paste((sum(with(Gender_and_Riskattitude, Undergrad_Dummy == 1 & Pop_RiskAttitude_VERYsimple == "Risk neutral")) / Num_RiskNeutrals *100),"% of Undergrad_Dummy in risk neutral people")
+paste("  ")
+paste((sum(with(Gender_and_Riskattitude, Postgrad_Dummy == 1 & Pop_RiskAttitude_VERYsimple == "Risk averse")) / Num_RiskAverse *100),"% of Postgrad_Dummy in risk averse people")
+paste((sum(with(Gender_and_Riskattitude, Undergrad_Dummy == 1 & Pop_RiskAttitude_VERYsimple == "Risk averse")) / Num_RiskAverse *100),"% of Undergrad_Dummy in risk averse people")
 ```
 
 ##### - North America sample
@@ -1570,15 +1985,31 @@ paste((sum(with(Position_df, Other_position_Dummy == 1  & Geographic_group == "N
 
 ##### - General sample
 ```{r}
-# Percentage of Volunteering people: 
-(sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Volunteering_Exp_Dummy ==1)) / nrow(Survey_Dummy_Variables_Rowan_Simple_V1) * 100)
-
-# Percentage of people who studied in conservation: 
-(sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Study_Exp_Dummy ==1)) / nrow(Survey_Dummy_Variables_Rowan_Simple_V1) *100)
-
-# Percentage of of people who worked in conservation: 
-(sum(with(Survey_Dummy_Variables_Rowan_Simple_V1, Study_Exp_Dummy ==1)) / nrow(Survey_Dummy_Variables_Rowan_Simple_V1) *100)
+paste((sum(with(Gender_and_Riskattitude, Volunteering_Exp_Dummy == 1)) / NumTotalGenders *100),"% of Volunteers people")
+paste((sum(with(Gender_and_Riskattitude, Study_Exp_Dummy == 1)) / NumTotalGenders *100),"% of Conservation_students people")
+paste((sum(with(Gender_and_Riskattitude, Work_Exp_Dummy == 1)) / NumTotalGenders *100),"% of Conservation_workers people")
+paste((sum(with(Gender_and_Riskattitude, Work_Exp_Dummy == 0 & Study_Exp_Dummy == 0 & Volunteering_Exp_Dummy ==0 )) / NumTotalGenders *100),"% of non-experienced people")
 ```
+####- By Risk attitude
+
+```{r}
+paste((round(sum(with(Gender_and_Riskattitude, Volunteering_Exp_Dummy == 1 & Pop_RiskAttitude_VERYsimple == "Risk loving")) / Num_RiskLovers *100)),"% of Volunteering_Exp_Dummy in risk loving people")
+paste((round(sum(with(Gender_and_Riskattitude, Study_Exp_Dummy == 1 & Pop_RiskAttitude_VERYsimple == "Risk loving")) / Num_RiskLovers *100)),"% of Study_Exp_Dummy in risk loving people")
+paste((round(sum(with(Gender_and_Riskattitude, Work_Exp_Dummy == 1 & Pop_RiskAttitude_VERYsimple == "Risk loving")) / Num_RiskLovers *100)),"% of Work_Exp_Dummy in risk loving people")
+paste((round(sum(with(Gender_and_Riskattitude, Work_Exp_Dummy == 0 & Study_Exp_Dummy == 0 & Volunteering_Exp_Dummy ==0 & Pop_RiskAttitude_VERYsimple == "Risk loving")) / Num_RiskLovers *100)),"% of non-experienced in risk loving people")
+paste("")
+paste((round(sum(with(Gender_and_Riskattitude, Volunteering_Exp_Dummy == 1 & Pop_RiskAttitude_VERYsimple == "Risk neutral")) / Num_RiskNeutrals *100)),"% of Volunteering_Exp_Dummy in risk neutral people")
+paste((round(sum(with(Gender_and_Riskattitude, Study_Exp_Dummy == 1 & Pop_RiskAttitude_VERYsimple == "Risk neutral")) / Num_RiskNeutrals *100)),"% of Study_Exp_Dummy in risk neutral people")
+paste((round(sum(with(Gender_and_Riskattitude, Work_Exp_Dummy == 1 & Pop_RiskAttitude_VERYsimple == "Risk neutral")) / Num_RiskNeutrals *100)),"% of Work_Exp_Dummy in risk neutral people")
+paste((round(sum(with(Gender_and_Riskattitude, Work_Exp_Dummy == 0 & Study_Exp_Dummy == 0 & Volunteering_Exp_Dummy ==0 & Pop_RiskAttitude_VERYsimple == "Risk neutral")) / Num_RiskNeutrals *100)),"% of non-experienced in risk neutral people")
+paste("")
+paste((round(sum(with(Gender_and_Riskattitude, Volunteering_Exp_Dummy == 1 & Pop_RiskAttitude_VERYsimple == "Risk averse")) / Num_RiskAverse *100)),"% of Volunteering_Exp_Dummy in risk averse people")
+paste((round(sum(with(Gender_and_Riskattitude, Study_Exp_Dummy == 1 & Pop_RiskAttitude_VERYsimple == "Risk averse")) / Num_RiskAverse *100)),"% of Study_Exp_Dummy in risk averse people")
+paste((round(sum(with(Gender_and_Riskattitude, Work_Exp_Dummy == 1 & Pop_RiskAttitude_VERYsimple == "Risk averse")) / Num_RiskAverse *100)),"% of Work_Exp_Dummy in risk averse people")
+paste((round(sum(with(Gender_and_Riskattitude, Work_Exp_Dummy == 0 & Study_Exp_Dummy == 0 & Volunteering_Exp_Dummy ==0 & Pop_RiskAttitude_VERYsimple == "Risk averse")) / Num_RiskAverse *100)),"% of non-experienced in risk averse people")
+```
+
+
 
 ##### - North America sample
 
@@ -1623,9 +2054,17 @@ paste((sum(with(Position_df, Other_position_Dummy == 1  & Geographic_group == "N
 ### g) Confidence in survey
 
 ```{r}
-esquisser(Survey_Dummy_Variables_Rowan_Simple_V1)
 
-ggplot(Survey_Dummy_Variables_Rowan_Simple_V1) +
+Confidence_in_survey <- Survey_Dummy_Variables_Rowan_Simple_V1 %>% 
+  filter(., !between(Confidence_in_survey, 6.1, 6.9)) %>% 
+  filter(., !is.na(Confidence_in_survey))
+  
+Confidence_in_survey$Publications_read <- factor(Confidence_in_survey$Publications_read,  # Reordering group factor levels
+                         levels = c("0", "1-5", "6-10", "11-20", "21+"))
+
+Confidence_in_survey %>% 
+  filter(., !is.na(Publications_read)) %>% 
+ggplot() +
  aes(x = Confidence_in_survey) +
  geom_density(adjust = 1L, 
  fill = "#112446") +
@@ -1633,11 +2072,16 @@ ggplot(Survey_Dummy_Variables_Rowan_Simple_V1) +
  theme_minimal() +
  facet_wrap(vars(Publications_read))
 ```
-
 The above is quite interesting. The plots are not in the right order but if you look at them in order you 
 see that the more papers people have read about it, the more they agree with each other. 
 
 Now let's see what average they have each: 
+```{r}
+sum(is.na(Confidence_in_survey$Confidence_in_survey))
+summary(Confidence_in_survey$Confidence_in_survey)
+round(table(Confidence_in_survey$Confidence_in_survey)/ nrow(Confidence_in_survey) *100, digits = 0)
+```
+
 
 #### - General sample
 
@@ -1692,8 +2136,15 @@ summary(subset(x = Survey_Dummy_Variables_Rowan_Simple_V1, select = Confidence_i
 ### h) Papers : Who, how many ! 
 
 ```{r}
-esquisser(Survey_Dummy_Variables_Rowan_Simple_V1)
+round(table(Survey_Dummy_Variables_Rowan_Simple_V2$Publications_read) / 133 * 100, digits = 1)
+```
+```{r}
+nrow(Survey_Dummy_Variables_Rowan_Simple_V2)
+sum(is.na(Survey_Dummy_Variables_Rowan_Simple_V2$Publications_read))
+```
 
+
+```{r}
 library(ggplot2)
 
 ggplot(Survey_Dummy_Variables_Rowan_Simple_V1) +
@@ -1716,6 +2167,12 @@ ggplot(No_averaged_observations_char_interest) +
  theme_minimal()
 ```
 !!!! NA VALUES THAT WERE ARTIFICIALLY PUT ON THE AVERAGE WERE EXCLUDED HERE !!!! 
+
+```{r}
+summary(No_averaged_observations_char_interest$Char_conservation_interest)
+round(table(No_averaged_observations_char_interest$Char_conservation_interest)/ nrow(No_averaged_observations_char_interest) *100, digits = 0)
+```
+
 
 ### j) Anticipation of new info
  
@@ -1796,13 +2253,71 @@ Survey_Dummy_Variables_Rowan_Simple_V1 %>%
   facet_wrap(vars(Information_anticipation))
 
 # A variant of the previous plot
+Anticipation_plot <- ggplot(Anticipation, aes(x = Alloc_diff_Round2to3, fill = Information_anticipation)) + geom_density(alpha = 0.5) +
+ labs(x = "Difference of budget allocation to High-Risk populations between Round two and three", y = "Density", title = "Niceplot") +
+ theme_minimal()
+
+ggsave(filename = "Anticipation_plot_V1.svg", plot = Anticipation_plot, device = "svg", path = "/home/nonopov/Bureau/PHD/Ongoing_Projects/Economics/Paper_survey/Figures/", dpi = 350, width = 9, height = 5)
+
 ggplot(Anticipation, aes(x = Alloc_diff_Round2to3, fill = Information_anticipation)) + geom_density(alpha = 0.5) +
  labs(x = "Difference of budget allocation to High-Risk populations between Round two and three", y = "Density", title = "Niceplot") +
  theme_minimal()
 ```
 The last three plots makes a lot of sense : 
 The people who anticipated that "low risk" populations could be unique too have much less modifies there answers from Round two to three. 
-Interestingly, some anticipated but did change it ... 
+Interestingly, many anticipated but did change it ... 
+
+Was the change SIGNIFICANTLY smaller in those who anticipated ? 
+Let's use a T-test ! 
+```{r}
+Anticipators <- Anticipation %>% 
+  filter(., Information_anticipation == "Yes") %>% 
+  select(., c(name, Information_anticipation, Alloc_diff_Round2to3, Alloc_HR_Round2, Work_Exp_Dummy))
+
+Not_anticipators <- Anticipation %>% 
+  filter(., Information_anticipation == "No") %>% 
+  select(., c(name, Information_anticipation, Alloc_diff_Round2to3, Alloc_HR_Round2))
+
+Anticipators_that_didnt_change <- Survey_Dummy_Variables_Rowan_Simple_V2 %>% 
+  filter(., Information_anticipation == "Yes") %>% 
+  filter(., Alloc_diff_Round2to3 == 0)
+
+Percentage_of_anticipators_that_still_changed <- round(sum(with(Anticipators, Alloc_diff_Round2to3 != 0)/ nrow(Anticipators)) *100, digits = 1)
+paste("A total of", Percentage_of_anticipators_that_still_changed, "anticipated the info but still changed their alloc!")
+
+# Prepare a proportion test to see if the 
+WorkExp_change <- sum(with(Anticipators, Alloc_diff_Round2to3 != 0 & Work_Exp_Dummy ==1))
+WorkExp_Nochange <- sum(with(Anticipators, Alloc_diff_Round2to3 == 0 & Work_Exp_Dummy ==1))
+NoWorkExp_change <- sum(with(Anticipators, Alloc_diff_Round2to3 != 0 & Work_Exp_Dummy ==0))
+NoWorkExp_Nochange <- sum(with(Anticipators, Alloc_diff_Round2to3 == 0 & Work_Exp_Dummy ==0))
+WorkExp_change # 40
+WorkExp_Nochange # 20
+NoWorkExp_change # 16
+NoWorkExp_Nochange # 2
+Anticichange <- as.table(matrix(c(WorkExp_change, WorkExp_Nochange, NoWorkExp_change, NoWorkExp_Nochange),ncol=2,byrow=T))
+rownames(Anticichange) <- c("Work_exp", "No_Work_exp")
+colnames(Anticichange) <- c("Change", "No_change")
+Anticichange
+
+prop.test(Anticichange, alternative = "less")
+```
+
+So finally , tell us ! Did they change less when they knew? 
+```{r}
+t.test(x = Anticipators$Alloc_diff_Round2to3, Not_anticipators$Alloc_diff_Round2to3, alternative = "greater", paired = F)
+```
+What if I use a Mann withney test ? (That is a wilcoxon without paired data (that's at least how I name it atm))
+```{r}
+wilcox.test(x = Anticipators$Alloc_diff_Round2to3, Not_anticipators$Alloc_diff_Round2to3, alternative = "greater", paired = F)
+```
+
+
+
+Oh and also, did they DIRECTLY allocated less in round 2 when they knew? 
+```{r}
+wilcox.test(x = Anticipators$Alloc_HR_Round2, Not_anticipators$Alloc_HR_Round2, alternative = "less", paired = F)
+```
+
 
 ### k) Comfortable with experiment.
 
@@ -1811,19 +2326,24 @@ Interestingly, some anticipated but did change it ...
 ##### - General sample
 ```{r}
 Comfortably <- Survey_Dummy_Variables_Rowan_Simple_V1 %>% 
-  filter(., !is.na(Comfortable_with_Exp))
+  filter(., !is.na(Comfortable_with_Exp)) 
 
 # Percentage of people who anticipated:  
 (sum(with(Comfortably, Comfortable_with_Exp == "Yes")) / nrow(Comfortably) * 100)
 
 # Percentage of people who DID NOT anticipate:  
 (sum(with(Comfortably, Comfortable_with_Exp == "No")) / nrow(Comfortably) * 100)
+
+# How many said no to leave a comment among all sample: 
+(sum(with(Comfortably, Comfortable_with_Exp == "No" & is.na(Comfortable_with_experiment))) / nrow(Comfortably) * 100)
+# How many among the "no's" : 
+(sum(with(Comfortably, Comfortable_with_Exp == "No" & is.na(Comfortable_with_experiment))) / ((sum(with(Comfortably, Comfortable_with_Exp == "No")) / nrow(Comfortably) * 100)) * 100)
 ```
 Did that have something to see with the median duration ? 
 ```{r}
 Comfortably %>%
   group_by(Comfortable_with_Exp) %>%
-  summarise_at(vars(Duration_in_minutes), list(name = median))
+  summarise_at(vars(Duration_in_minutes_capped), list(name = median))
 ```
 ### l) Taxonomy 
 
@@ -1851,6 +2371,78 @@ Survey_Dummy_Variables_Rowan_Simple_V1 %>%
  theme_minimal() +
  facet_wrap(vars(Many_Papers_Dummy)) +
  labs(x = "Before the survey, did you think that char taxonomy was inadequate ?", y = "Count", title = "Opinion on taxonomy depending on wether they have read a lot \n of papers about char (1) or not (0)") 
+
+Taxonomyplot <- Survey_Dummy_Variables_Rowan_Simple_V1 %>%
+ filter(!is.na(Taxonomy)) %>%
+ ggplot() +
+ aes(x = Taxonomy) +
+ geom_bar(fill = "#112446") +
+ theme_minimal() +
+ facet_wrap(vars(Many_Papers_Dummy)) +
+ labs(x = "Before the survey, did you think that char taxonomy was inadequate ?", y = "Count", title = "Opinion on taxonomy depending on wether they have read a lot \n of papers about char (1) or not (0)") 
+
+ggsave(filename = "Taxonomyplot.svg", plot = Taxonomyplot, device = "svg", path = "/home/nonopov/Bureau/PHD/Ongoing_Projects/Economics/Paper_survey/Figures", dpi = 350, width = 5, height = 6)
+```
+```{r}
+Taxonomy_stuff <- Survey_Dummy_Variables_Rowan_Simple_V2 %>%
+ filter(!is.na(Taxonomy)) %>%
+ select(., name, Taxonomy, Expert_dummy)
+
+paste((round(sum(with(Taxonomy_stuff, Taxonomy == "I had no opinion")) / nrow(Taxonomy_stuff) *100)),"% of Non-opinionated for the taxonomy question")
+paste((round(sum(with(Taxonomy_stuff, Taxonomy == "Yes")) / nrow(Taxonomy_stuff) *100)),"% of YES for the taxonomy question")
+paste((round(sum(with(Taxonomy_stuff, Taxonomy == "No")) / nrow(Taxonomy_stuff) *100)),"% of NO for the taxonomy question")
+```
+
+
+```{r}
+# Prepare a proportion test to see if the experts have a different opinion that the non-experts !
+Yes_experts <- sum(with(Taxonomy_stuff, Taxonomy == "Yes" & Expert_dummy ==1))
+No_experts <- sum(with(Taxonomy_stuff, Taxonomy == "No" & Expert_dummy ==1))
+Yes_NONexperts <- sum(with(Taxonomy_stuff, Taxonomy == "Yes" & Expert_dummy ==0))
+No_NONexperts <- sum(with(Taxonomy_stuff, Taxonomy == "No" & Expert_dummy ==0))
+Yes_experts # 
+No_experts # 
+Yes_NONexperts # 
+No_NONexperts # 
+
+Yes_people <- c(Yes_experts, Yes_NONexperts)
+People <- c( (Yes_experts + No_experts) , (Yes_NONexperts + No_NONexperts))
+
+prop.test(Yes_people, People, alternative = "less")
+```
+Experts are more opinionated right ?
+```{r}
+How_many_experts <- sum(Taxonomy_stuff$Expert_dummy == 1)
+How_many_NON_experts <- sum(Taxonomy_stuff$Expert_dummy == 0)
+
+paste((round(sum(with(Taxonomy_stuff, Taxonomy == "I had no opinion" & Expert_dummy == 1)) / How_many_experts *100)),"% of Non-opinionated in EXPERTS for the taxonomy question")
+
+paste((round(sum(with(Taxonomy_stuff, Taxonomy == "I had no opinion" & Expert_dummy == 0)) / How_many_NON_experts *100)),"% of Non-opinionated in NON-EXPERTS for the taxonomy question")
+
+Opinionated_NonExperts <- sum(with(Taxonomy_stuff, Taxonomy == "Yes" & Expert_dummy == 0) + with(Taxonomy_stuff, Taxonomy == "No" & Expert_dummy == 0))
+Opinionated_Experts <- sum(with(Taxonomy_stuff, Taxonomy == "Yes" & Expert_dummy == 1) + with(Taxonomy_stuff, Taxonomy == "No" & Expert_dummy == 1))
+Non_Opinionated_NonExperts <- sum(with(Taxonomy_stuff, Taxonomy == "I had no opinion" & Expert_dummy == 0))
+Non_Opinionated_Experts <- sum(with(Taxonomy_stuff, Taxonomy == "I had no opinion" & Expert_dummy == 1))
+
+
+Opinionated_Experts
+Non_Opinionated_Experts
+Opinionated_NonExperts
+Non_Opinionated_NonExperts
+
+
+No_Opinions <- c(Non_Opinionated_Experts, Non_Opinionated_NonExperts)
+Expertsornot_sampleSize <- c((Opinionated_Experts+Non_Opinionated_Experts) , (Opinionated_NonExperts+Non_Opinionated_NonExperts))
+
+prop.test(No_Opinions, Expertsornot_sampleSize, alternative = "less")
+```
+
+
+```{r}
+Taxo_Yes <- Survey_Dummy_Variables_Rowan_Simple_V2 %>% 
+  filter(., Taxonomy == "Yes")
+
+mean(Taxo_Yes$Char_conservation_interest)
 ```
 
 
@@ -1875,8 +2467,22 @@ Survey_Dummy_Variables_Rowan_Simple_V1 %>%
   ggplot(., aes(x = TrueFalseScore, fill = as.factor(Many_Papers_Dummy))) + geom_density(alpha = 0.5) +
  labs(x = "True or False score", y = "Density", title = "True or false score varying with papers read") +
  theme_minimal()
-
 ```
+
+Is it significantly different between the two groups? 
+```{r}
+Tempo_Experts <- Survey_Dummy_Variables_Rowan_Simple_V2 %>% 
+  filter(., Publications_read == "21+")
+
+Tempo_NON_Experts <- Survey_Dummy_Variables_Rowan_Simple_V2 %>% 
+  filter(., !Publications_read == "21+")
+
+t.test(Tempo_Experts$TrueFalseScore, Tempo_NON_Experts$TrueFalseScore, alternative = "greater", paired = F)
+
+rm(Tempo_Experts)
+rm(Tempo_NON_Experts)
+```
+
 
 
 ### n) Sufficiently protected
@@ -1890,11 +2496,18 @@ Survey_Dummy_Variables_Rowan_Simple_V1 %>%
 Sufficiently_protected_data_first <- Survey_Dummy_Variables_Rowan_Simple_V1 %>% 
   select(., Scale_Sufficently_Protected_First, name) %>% 
   rename("Scale_Sufficently_Protected" = Scale_Sufficently_Protected_First) %>% 
-  mutate(., Time_asked = "First")
+  mutate(., Time_asked = "First") %>% 
+  filter(., !is.na(Scale_Sufficently_Protected)) %>% 
+  # You want to filter those shitty averaged values !
+  filter(., !between(Scale_Sufficently_Protected, 2,3))
+  
 Sufficiently_protected_data_second <- Survey_Dummy_Variables_Rowan_Simple_V1 %>% 
   select(., Scale_Sufficently_Protected_Second, name) %>% 
   rename("Scale_Sufficently_Protected" = Scale_Sufficently_Protected_Second) %>% 
-  mutate(., Time_asked = "Second")
+  mutate(., Time_asked = "Second")%>% 
+  filter(., !is.na(Scale_Sufficently_Protected)) %>% 
+  # You want to filter those shitty averaged values !
+  filter(., !between(Scale_Sufficently_Protected, 2,3))
 
 Sufficiently_protected_data <- rbind(Sufficiently_protected_data_first, Sufficiently_protected_data_second)
 
@@ -1907,19 +2520,92 @@ ggplot(., aes(x = Scale_Sufficently_Protected, fill = Time_asked)) +
 ```
 
 ```{r}
+summary(Survey_Dummy_Variables_Rowan_Simple_V2$Scale_Sufficently_Protected_First)
+summary(Survey_Dummy_Variables_Rowan_Simple_V2$Scale_Sufficently_Protected_Second)
+```
+```{r}
+paste0("First time asked:")
+round(table(Sufficiently_protected_data_first$Scale_Sufficently_Protected) / nrow(Sufficiently_protected_data_first) *100)
+paste0("Second time asked:")
+round(table(Sufficiently_protected_data_second$Scale_Sufficently_Protected) / nrow(Sufficiently_protected_data_first) *100)
+```
+
+
+
+```{r}
 t.test(Survey_Dummy_Variables_Rowan_Simple_V1$Scale_Sufficently_Protected_First, Survey_Dummy_Variables_Rowan_Simple_V1$Scale_Sufficently_Protected_Second, alternative = "less" )
 ```
 Try it on different subsets.
 ```{r}
 # Students
-Susbet_Students <- Survey_Dummy_Variables_Rowan_Simple_V1 %>% 
-    filter(., Student_Dummy == 1)
+Susbet_Students <- Survey_Dummy_Variables_Rowan_Simple_V2 %>% 
+    filter(., Employment_status == "Student")
 t.test(Susbet_Students$Scale_Sufficently_Protected_First, Susbet_Students$Scale_Sufficently_Protected_Second, alternative = "less" )
 
 # Char_conservation_interest
 Susbet_Char_conservation_interest <- Survey_Dummy_Variables_Rowan_Simple_V1 %>% 
     filter(., Char_conservation_interest < 7)
 t.test(Susbet_Char_conservation_interest$Scale_Sufficently_Protected_First, Susbet_Char_conservation_interest$Scale_Sufficently_Protected_Second, alternative = "less" )
+```
+### o) By Age
+
+EarlyAge
+MediumAge
+OldAge
+
+```{r}
+paste((sum(with(Gender_and_Riskattitude, Age_grouped == "EarlyAge")) / NumTotalGenders *100),"% of EarlyAge in people")
+paste((sum(with(Gender_and_Riskattitude, Age_grouped == "MediumAge")) / NumTotalGenders *100),"% of MediumAge in people")
+paste((sum(with(Gender_and_Riskattitude, Age_grouped == "OldAge")) / NumTotalGenders *100),"% of OldAge in people")
+```
+
+### p) CRRA & Risk attitudes
+
+```{r}
+Risk_attitudes <-  Survey_Dummy_Variables_Rowan_Simple_V2 %>% 
+  select(., c(Money_CRRA, Pop_CRRA, name)) %>% 
+  filter(., !is.na(Money_CRRA)) %>% 
+  filter(., !is.na(Pop_CRRA))
+
+Sample_size_RiskAttitudes <- nrow(Risk_attitudes)
+
+paste((round(sum(with(Risk_attitudes, Money_CRRA == "0.98")) / Sample_size_RiskAttitudes *100)),"% of 0.98 Money CRRA in people")
+paste((round(sum(with(Risk_attitudes, Money_CRRA == "0.84")) / Sample_size_RiskAttitudes *100)),"% of 0.84 Money CRRA in people")
+paste((round(sum(with(Risk_attitudes, Money_CRRA == "0.67")) / Sample_size_RiskAttitudes *100)),"% of 0.67 Money CRRA in people")
+paste((round(sum(with(Risk_attitudes, Money_CRRA == "0.48")) / Sample_size_RiskAttitudes *100)),"% of 0.48 Money CRRA in people")
+paste((round(sum(with(Risk_attitudes, Money_CRRA == "0.26")) / Sample_size_RiskAttitudes *100)),"% of 0.26 Money CRRA in people")
+paste((round(sum(with(Risk_attitudes, Money_CRRA == "0")) / Sample_size_RiskAttitudes *100)),"% of 0 Money CRRA in people")
+paste((round(sum(with(Risk_attitudes, Money_CRRA == "-0.33")) / Sample_size_RiskAttitudes *100)),"% of -0.33 Money CRRA in people")
+paste((round(sum(with(Risk_attitudes, Money_CRRA == "-0.74")) / Sample_size_RiskAttitudes *100)),"% of -0.74 Money CRRA in people")
+paste((round(sum(with(Risk_attitudes, Money_CRRA == "-1.33")) / Sample_size_RiskAttitudes *100)),"% of -1.33 Money CRRA in people")
+paste((round(sum(with(Risk_attitudes, Money_CRRA <= -2)) / Sample_size_RiskAttitudes *100)),"% of -2 or less Money CRRA in people")
+paste("....")
+paste((round(sum(with(Risk_attitudes, Pop_CRRA == "0.98")) / Sample_size_RiskAttitudes *100)),"% of 0.98 Pop_CRRA in people")
+paste((round(sum(with(Risk_attitudes, Pop_CRRA == "0.84")) / Sample_size_RiskAttitudes *100)),"% of 0.84 Pop_CRRA in people")
+paste((round(sum(with(Risk_attitudes, Pop_CRRA == "0.67")) / Sample_size_RiskAttitudes *100)),"% of 0.67 Pop_CRRA in people")
+paste((round(sum(with(Risk_attitudes, Pop_CRRA == "0.48")) / Sample_size_RiskAttitudes *100)),"% of 0.48 Pop_CRRA in people")
+paste((round(sum(with(Risk_attitudes, Pop_CRRA == "0.26")) / Sample_size_RiskAttitudes *100)),"% of 0.26 Pop_CRRA in people")
+paste((round(sum(with(Risk_attitudes, Pop_CRRA == "0")) / Sample_size_RiskAttitudes *100)),"% of 0 Pop_CRRA in people")
+paste((round(sum(with(Risk_attitudes, Pop_CRRA == "-0.33")) / Sample_size_RiskAttitudes *100)),"% of -0.33 Pop_CRRA in people")
+paste((round(sum(with(Risk_attitudes, Pop_CRRA == "-0.74")) / Sample_size_RiskAttitudes *100)),"% of -0.74 Pop_CRRA in people")
+paste((round(sum(with(Risk_attitudes, Pop_CRRA == "-1.33")) / Sample_size_RiskAttitudes *100)),"% of -1.33 Pop_CRRA in people")
+paste((round(sum(with(Risk_attitudes, Pop_CRRA <= -2)) / Sample_size_RiskAttitudes *100)),"% of -2 or less Pop_CRRA in people")
+```
+
+
+
+```{r}
+paste((sum(with(Gender_and_Riskattitude, Age_grouped == "EarlyAge" & Pop_RiskAttitude_VERYsimple == "Risk loving")) / Num_RiskLovers *100),"% of EarlyAge in risk loving people")
+paste((sum(with(Gender_and_Riskattitude, Age_grouped == "MediumAge" & Pop_RiskAttitude_VERYsimple == "Risk loving")) / Num_RiskLovers *100),"% of MediumAge in risk loving people")
+paste((sum(with(Gender_and_Riskattitude, Age_grouped == "OldAge" & Pop_RiskAttitude_VERYsimple == "Risk loving")) / Num_RiskLovers *100),"% of OldAge in risk loving people")
+
+paste((sum(with(Gender_and_Riskattitude, Age_grouped == "EarlyAge" & Pop_RiskAttitude_VERYsimple == "Risk neutral")) / Num_RiskNeutrals *100),"% of EarlyAge in risk neutral people")
+paste((sum(with(Gender_and_Riskattitude, Age_grouped == "MediumAge" & Pop_RiskAttitude_VERYsimple == "Risk neutral")) / Num_RiskNeutrals *100),"% of MediumAge in risk neutral people")
+paste((sum(with(Gender_and_Riskattitude, Age_grouped == "OldAge" & Pop_RiskAttitude_VERYsimple == "Risk neutral")) / Num_RiskNeutrals *100),"% of OldAge in risk neutral people")
+
+paste((sum(with(Gender_and_Riskattitude, Age_grouped == "EarlyAge" & Pop_RiskAttitude_VERYsimple == "Risk averse")) / Num_RiskAverse *100),"% of EarlyAge in risk averse people")
+paste((sum(with(Gender_and_Riskattitude, Age_grouped == "MediumAge" & Pop_RiskAttitude_VERYsimple == "Risk averse")) / Num_RiskAverse *100),"% of MediumAge in risk averse people")
+paste((sum(with(Gender_and_Riskattitude, Age_grouped == "OldAge" & Pop_RiskAttitude_VERYsimple == "Risk averse")) / Num_RiskAverse *100),"% of OldAge in risk averse people")
 ```
 
 
@@ -2028,6 +2714,14 @@ The gretaest effect is for unemployed people, who trust the survey big time.
 
 Surprisingly, experience in conservation did not have an effect on that model ... ???
 
+```{r}
+cor.test(Survey_Dummy_Variables_Rowan_Simple_V1$Papers_read_fakeNumeric, Survey_Dummy_Variables_Rowan_Simple_V1$Confidence_in_survey, alternative = "greater", method = "kendall")
+```
+And what about the true and false score ? 
+```{r}
+cor.test(Survey_Dummy_Variables_Rowan_Simple_V1$TrueFalseScore, Survey_Dummy_Variables_Rowan_Simple_V1$Confidence_in_survey, alternative = "greater", method = "kendall")
+```
+
 
 ### c) Char interest model 
 
@@ -2079,6 +2773,16 @@ Alloc_profile_AllRoundsSame-Up        -3.997681   1.638621  -2.440   0.0180 *
 
 That would mean that people who did not react to the information and then allocated more to the HR did not believe in char in the first place . 
 Well it's not that interesting but we could work on that. 
+
+Is there a correlation between the char interest and number of papers read. 
+```{r}
+cor.test(Survey_Dummy_Variables_Rowan_Simple_V1$Papers_read_fakeNumeric, Survey_Dummy_Variables_Rowan_Simple_V1$Char_conservation_interest, alternative = "greater", method = "kendall")
+```
+And what about the true and false score ? 
+```{r}
+cor.test(Survey_Dummy_Variables_Rowan_Simple_V1$TrueFalseScore, Survey_Dummy_Variables_Rowan_Simple_V1$Char_conservation_interest, alternative = "greater", method = "kendall")
+```
+
 
 
 ### d) Anticipation model 
@@ -2215,7 +2919,6 @@ Budget_DF_Round2 <- data.frame(HR_Budg_Alloc =seq(0, 100, by=1), LR_Budg_Alloc =
   mutate(., Percentage_HR_PopsLost = (HR_Pops_Lost / 10) *100) %>% 
   mutate(., Percentage_LR_PopsLost = (LR_Pops_Lost / 35) *100)  
 
-esquisser(Budget_DF_Round2)
 ```
 
 
@@ -2256,16 +2959,107 @@ ggplot(Budget_DF_Round2) +
 ```
 
 
+# 6) Statistical tests
+
+The questions below will be explored using some models too but you can do some tests in parralel.
+
+    • Does the risk attitude of respondents (proxies of policymakers) vary with the domain (money vs populations) ?
+    • Given a constant expected outcome, do people prefer to save endangered or less endangered populations? 
+    • Does new scientific information influence ressource allocation? 
+    • Does Does the risk attitude of respondents influence that change in allocation ?
+    • When un-anticipated, does new uncertainty on previous information influence the ressource allocation ? 
+      Does it revert it to the original state (i.e before info) or is there a sort of middle-ground? 
+
+Mann-Withney test : Across different groups, in different treatments (eg. before after some effect)
+Wilcocson signed rank test : Within same group, in different treatments (eg. before after some effect)
+
+## x) Basic stuff about risk attitudes
+
+```{r}
+Numbers_4_RA_Pop <- Survey_Dummy_Variables_Rowan_Simple_V2 %>% 
+  filter(., !is.na(Pop_RiskAttitude_VERYsimple)) %>% 
+  select(., c(name, Pop_RiskAttitude_VERYsimple))
+
+Numbers_4_RA_Money <- Survey_Dummy_Variables_Rowan_Simple_V2 %>% 
+  filter(., !is.na(Money_RiskAttitude_VERYsimple)) %>% 
+  select(., c(name, Money_RiskAttitude_VERYsimple))
+
+paste((round(sum(with(Numbers_4_RA_Pop, Pop_RiskAttitude_VERYsimple == "Risk loving")) / nrow(Numbers_4_RA_Pop) *100)),"% of Risk loving people overall for populations")
+paste((round(sum(with(Numbers_4_RA_Pop, Pop_RiskAttitude_VERYsimple == "Risk neutral")) / nrow(Numbers_4_RA_Pop) *100)),"% of Risk neutral people overall for populations")
+paste((round(sum(with(Numbers_4_RA_Pop, Pop_RiskAttitude_VERYsimple == "Risk averse")) / nrow(Numbers_4_RA_Pop) *100)),"% of Risk averse people overall for populations")
+paste("")
+paste((round(sum(with(Numbers_4_RA_Money, Money_RiskAttitude_VERYsimple == "Risk loving")) / nrow(Numbers_4_RA_Money) *100)),"% of Risk loving people overall for MONEY")
+paste((round(sum(with(Numbers_4_RA_Money, Money_RiskAttitude_VERYsimple == "Risk neutral")) / nrow(Numbers_4_RA_Money) *100)),"% of Risk neutral people overall for MONEY")
+paste((round(sum(with(Numbers_4_RA_Money, Money_RiskAttitude_VERYsimple == "Risk averse")) / nrow(Numbers_4_RA_Money) *100)),"% of Risk averse people overall for MONEY")
+```
+
+
+## a) Does the risk attitude of respondents (proxies of policymakers) vary with the domain (money vs populations) ?
+
+Which variable to use? 
+It makes sense to use Pop_CRRA and Money_CRRA to my opinion. 
+
+Which test? 
+The Wilcocson one ! 
+http://www.sthda.com/english/wiki/paired-samples-wilcoxon-test-in-r 
+
+```{r}
+Survey_Dummy_Variables_Rowan_Simple_V2 %>%  
+summarise(
+    count = n(),
+    median = median(Money_CRRA, na.rm = TRUE),
+    IQR = IQR(Money_CRRA, na.rm = TRUE)
+  )
+
+Survey_Dummy_Variables_Rowan_Simple_V2 %>%  
+summarise(
+    count = n(),
+    median = median(Pop_CRRA, na.rm = TRUE),
+    IQR = IQR(Pop_CRRA, na.rm = TRUE)
+  )
+```
+
+```{r}
+wilcox.test(Survey_Dummy_Variables_Rowan_Simple_V2$Money_CRRA, Survey_Dummy_Variables_Rowan_Simple_V2$Pop_CRRA, alternative = "less", paired = T)
+```
+So YES it appears that people are MORE risk averse with populations than with their own money.
+
+## b) Given a constant expected outcome, do people prefer to save endangered or less endangered populations? 
+
+```{r}
+wilcox.test(Survey_Dummy_Variables_Rowan_Simple_V2$Alloc_HR_Round1, Survey_Dummy_Variables_Rowan_Simple_V2$Alloc_LR_Round1, alternative = "less", paired = T)
+```
+Ok not significant yet but will surely be with the new complete dataset !! 
+
+
+## c) Does new scientific information influence ressource allocation?  
+
+```{r}
+wilcox.test(Survey_Dummy_Variables_Rowan_Simple_V2$Alloc_HR_Round2, Survey_Dummy_Variables_Rowan_Simple_V2$Alloc_LR_Round2, alternative = "greater", paired = T)
+```
+```{r}
+mean(Survey_Dummy_Variables_Rowan_Simple_V2$Alloc_HR_Round1, na.rm = T)
+mean(Survey_Dummy_Variables_Rowan_Simple_V2$Alloc_HR_Round2, na.rm = T)
+mean(Survey_Dummy_Variables_Rowan_Simple_V2$Alloc_HR_Round3, na.rm = T)
+```
+
+## d) When un-anticipated, does new uncertainty on previous information influence the ressource allocation ? 
+
+That is, does the allocation change in the third round ?
+```{r}
+wilcox.test(Survey_Dummy_Variables_Rowan_Simple_V2$Alloc_HR_Round3, Survey_Dummy_Variables_Rowan_Simple_V2$Alloc_LR_Round3, alternative = "less", paired = T)
+```
+So not really significant at the moment but COULD be with more data.
+
+      Does it revert it to the original state (i.e before info) or is there a sort of middle-ground?
 
 
 
+## e) Does the risk attitude of respondents influence that change in allocation ?
 
+```{r}
 
-
-
-
-
-
+```
 
 
 
